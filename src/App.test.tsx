@@ -421,6 +421,18 @@ it('sélectionne l’arrêt le plus proche de la position', async () => {
   expect(await within(widget()).findByText(/\d+:\d{2} min/)).toBeInTheDocument();
 });
 
+it('remplace par l’arrêt le plus proche un arrêt choisi auparavant', async () => {
+  mockPosition({ lat: 45.7486, lon: 4.8256 });
+  render(<App api={createDemoApi()} />);
+  await openSettings();
+  await chooseLine('T1');
+  await chooseStop('Arrêt C');
+  expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt C');
+  fireEvent.click(screen.getByRole('button', { name: 'Arrêt le plus proche' }));
+  await waitFor(() => expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B'));
+  expect(localStorage.getItem('quandpartir.arret')).toBe('Arrêt B');
+});
+
 describe('au chargement', () => {
   beforeEach(() => {
     localStorage.setItem('quandpartir.ligne', 'T1');
@@ -440,6 +452,20 @@ describe('au chargement', () => {
     expect(walk()).toHaveTextContent('6 min');
     expect(await within(widget()).findByText(/Prochain tram T1 direction Direction B/)).toBeInTheDocument();
     expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('relance la localisation au clic même si celle du chargement ne répond jamais', async () => {
+    let calls = 0;
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      // La demande du chargement reste sans réponse (autorisation ignorée…).
+      if (++calls > 1) success({ coords: { latitude: 45.7606, longitude: 4.8594 } } as GeolocationPosition);
+    });
+    Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+    render(<App api={createDemoApi()} />);
+    await openSettings();
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: /Localisation|Arrêt le plus proche/ }));
+    await waitFor(() => expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt C'));
   });
 
   it('garde l’arrêt retenu, sans message, si la localisation est refusée', async () => {

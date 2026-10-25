@@ -182,16 +182,19 @@ export function App({ api }: { api: PassagesApi }) {
   /**
    * Sélectionne l'arrêt le plus proche. Lancée automatiquement au chargement,
    * un échec (localisation refusée…) est silencieux : l'arrêt retenu reste choisi.
-   * Si la ligne a changé entre-temps, la position reçue est ignorée.
+   * Si la ligne a changé entre-temps, ou si une demande plus récente a été
+   * lancée (une demande peut ne jamais aboutir), la réponse est ignorée.
    */
+  const locateRequest = useRef(0);
   const chooseNearest = async ({ auto = false } = {}) => {
+    const request = ++locateRequest.current;
     const line = lineChosen;
     const candidates = lineStops;
     setLocating(true);
     setLocateError(null);
     try {
       const position = await currentPosition();
-      if (currentLine.current !== line) return;
+      if (request !== locateRequest.current || currentLine.current !== line) return;
       const found = nearestStop(candidates, position);
       if (found) {
         chooseStop(found.stop.name);
@@ -199,9 +202,9 @@ export function App({ api }: { api: PassagesApi }) {
       }
       setError(null);
     } catch (e) {
-      if (!auto) setLocateError(message(e));
+      if (!auto && request === locateRequest.current) setLocateError(message(e));
     } finally {
-      setLocating(false);
+      if (request === locateRequest.current) setLocating(false);
     }
   };
 
@@ -330,7 +333,6 @@ export function App({ api }: { api: PassagesApi }) {
                                     iconColor="darkGray"
                                     size="lg"
                                     onClick={() => chooseNearest()}
-                                    disabled={locating}
                                   />
                                 )}
                               </Flex>
