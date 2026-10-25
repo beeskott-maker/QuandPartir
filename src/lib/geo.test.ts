@@ -42,6 +42,6 @@ describe('currentPosition', () => {
   });
 });
 
-it('estime la marche à 4,5 km/h avec 30 % de détours', () => {
-  expect(estimateWalkSeconds(1000)).toBeCloseTo(1040);
+it('estime la marche à 4,5 km/h avec 30 % de détours, plus 3 min de marge', () => {
+  expect(estimateWalkSeconds(1000)).toBeCloseTo(1040 + 180);
 });

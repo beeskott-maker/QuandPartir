@@ -469,13 +469,13 @@ describe('au chargement', () => {
   });
 
   it('estime le temps de marche à vol d’oiseau si l’itinéraire est indisponible', async () => {
-    // À 500 m au nord d’Arrêt B : 500 m × 1,3 à 4,5 km/h, soit 8 min 40 s.
+    // À 500 m au nord d’Arrêt B : 500 m × 1,3 à 4,5 km/h (8 min 40 s), plus 3 min de marge.
     mockPosition({ lat: 45.753, lon: 4.8255 });
     const api = createDemoApi();
     vi.spyOn(api, 'getWalkSeconds').mockRejectedValue(new Error('IGN injoignable'));
     render(<App api={api} />);
     await openSettings();
-    await waitFor(() => expect(walk()).toHaveTextContent('9 min'));
+    await waitFor(() => expect(walk()).toHaveTextContent('12 min'));
     expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });

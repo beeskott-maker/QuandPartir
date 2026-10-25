@@ -36,10 +36,12 @@ export const LOCATE_TIMEOUT_MS = 15_000;
 /** Marche à 4,5 km/h, et des rues 30 % plus longues que la ligne droite. */
 const WALK_METERS_PER_SECOND = 4500 / 3600;
 const DETOUR_FACTOR = 1.3;
+/** Marge de sécurité ajoutée à l'estimation, moins fiable qu'un vrai itinéraire. */
+const ESTIMATE_MARGIN_SECONDS = 3 * 60;
 
 /** Durée de marche estimée (s) d'après la distance à vol d'oiseau, faute d'itinéraire. */
 export function estimateWalkSeconds(meters: number): number {
-  return (meters * DETOUR_FACTOR) / WALK_METERS_PER_SECOND;
+  return (meters * DETOUR_FACTOR) / WALK_METERS_PER_SECOND + ESTIMATE_MARGIN_SECONDS;
 }
 
 const NOT_FOUND = 'Position introuvable pour le moment. Vérifie que la localisation est activée, puis réessaie.';
