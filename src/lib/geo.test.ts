@@ -1,0 +1,28 @@
+import { distanceMeters, formatDistance, nearestStop } from './geo';
+
+// Bellecour et Perrache, environ 1,2 km.
+const bellecour = { lat: 45.7578, lon: 4.832 };
+const perrache = { lat: 45.7485, lon: 4.8255 };
+
+it('calcule une distance à vol d’oiseau', () => {
+  expect(distanceMeters(bellecour, perrache)).toBeGreaterThan(1100);
+  expect(distanceMeters(bellecour, perrache)).toBeLessThan(1300);
+  expect(distanceMeters(bellecour, bellecour)).toBe(0);
+});
+
+it('trouve l’arrêt le plus proche, en ignorant ceux sans coordonnées', () => {
+  const stops = [
+    { name: 'Sans coordonnées', ids: ['0'] },
+    { name: 'Perrache', ids: ['1'], ...perrache },
+    { name: 'Bellecour', ids: ['2'], ...bellecour },
+  ];
+  const result = nearestStop(stops, { lat: 45.757, lon: 4.8315 });
+  expect(result?.stop.name).toBe('Bellecour');
+  expect(result?.distance).toBeLessThan(150);
+  expect(nearestStop([stops[0]], bellecour)).toBeNull();
+});
+
+it('formate une distance', () => {
+  expect(formatDistance(83)).toBe('80 m');
+  expect(formatDistance(1234)).toBe('1,2 km');
+});

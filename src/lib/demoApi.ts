@@ -2,9 +2,9 @@ import type { Passage, PassagesApi, Stop } from './types';
 
 const DEMO_DIRECTIONS = ['Direction A', 'Direction B'];
 const DEMO_STOPS: Stop[] = [
-  { name: 'Arrêt A', ids: ['1', '2'] },
-  { name: 'Arrêt B', ids: ['3', '4'] },
-  { name: 'Arrêt C', ids: ['5', '6'] },
+  { name: 'Arrêt A', ids: ['1', '2'], lat: 45.7578, lon: 4.832 },
+  { name: 'Arrêt B', ids: ['3', '4'], lat: 45.7485, lon: 4.8255 },
+  { name: 'Arrêt C', ids: ['5', '6'], lat: 45.7606, lon: 4.8594 },
 ];
 
 /** Passages fictifs, recalculés à chaque appel pour rester « à venir ». */

@@ -1,5 +1,5 @@
 // Génère public/arrets.json : pour chaque ligne suivie, la liste des arrêts
-// (nom -> codes d'arrêt) tirée du jeu « tcl_sytral.tclarret » de data.grandlyon.com.
+// (nom -> codes d'arrêt et position moyenne des quais) tirée du jeu « tcl_sytral.tclarret » de data.grandlyon.com.
 // Lancé par la CI avant le build ; en local : GRANDLYON_USER=… GRANDLYON_PASSWORD=… npm run stops
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -40,15 +40,23 @@ function linesOf(desserte) {
     .filter(Boolean);
 }
 
+/** Position moyenne des quais, arrondie (~1 m). */
+function center(coords) {
+  if (!coords.length) return {};
+  const mean = (i) => Math.round((coords.reduce((sum, c) => sum + c[i], 0) / coords.length) * 1e5) / 1e5;
+  return { lat: mean(0), lon: mean(1) };
+}
+
 const rows = await fetchAll(process.env.STOPS_URL ?? URL_ARRETS);
 const lines = {};
 for (const line of LINES) {
   const byName = new Map();
   for (const row of rows) {
     if (row.id == null || !row.nom || !linesOf(row.desserte).includes(line)) continue;
-    const ids = byName.get(row.nom) ?? [];
-    ids.push(String(row.id));
-    byName.set(row.nom, ids);
+    const stop = byName.get(row.nom) ?? { ids: [], coords: [] };
+    stop.ids.push(String(row.id));
+    if (Number.isFinite(row.lat) && Number.isFinite(row.lon)) stop.coords.push([row.lat, row.lon]);
+    byName.set(row.nom, stop);
   }
   if (byName.size === 0) {
     console.error(`Aucun arrêt trouvé pour la ligne ${line} parmi ${rows.length} arrêts.`);
@@ -57,7 +65,7 @@ for (const line of LINES) {
     process.exit(1);
   }
   lines[line] = [...byName]
-    .map(([name, ids]) => ({ name, ids }))
+    .map(([name, { ids, coords }]) => ({ name, ids, ...center(coords) }))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   console.log(`${line} : ${lines[line].length} arrêts`);
 }

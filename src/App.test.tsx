@@ -3,8 +3,20 @@ import { App } from './App';
 import { createDemoApi } from './lib/demoApi';
 import type { PassagesApi } from './lib/types';
 
+function mockPosition(result: { lat: number; lon: number } | { denied: true }) {
+  const getCurrentPosition = vi.fn((success: PositionCallback, failure?: PositionErrorCallback | null) => {
+    if ('denied' in result) {
+      failure?.({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+    } else {
+      success({ coords: { latitude: result.lat, longitude: result.lon } } as GeolocationPosition);
+    }
+  });
+  Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+}
+
 afterEach(() => {
   localStorage.clear();
+  Reflect.deleteProperty(navigator, 'geolocation');
 });
 
 it('affiche les passages de la T1 à l’arrêt choisi par son nom, et le retient', async () => {
@@ -39,4 +51,22 @@ it('affiche l’erreur de l’API', async () => {
   await screen.findByRole('option', { name: 'Arrêt A' });
   fireEvent.change(screen.getByLabelText('Arrêt'), { target: { value: 'Arrêt A' } });
   expect(await screen.findByRole('alert')).toHaveTextContent('Accès refusé');
+});
+
+it('sélectionne l’arrêt le plus proche de la position', async () => {
+  mockPosition({ lat: 45.7486, lon: 4.8256 });
+  const api = createDemoApi();
+  const getPassages = vi.spyOn(api, 'getPassages');
+  render(<App api={api} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
+  expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
+  expect(getPassages).toHaveBeenCalledWith(['3', '4'], 'T1');
+});
+
+it('explique un refus de localisation', async () => {
+  mockPosition({ denied: true });
+  render(<App api={createDemoApi()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Localisation refusée');
 });

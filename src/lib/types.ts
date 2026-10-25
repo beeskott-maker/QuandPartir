@@ -18,6 +18,9 @@ export interface Passage {
 export interface Stop {
   name: string;
   ids: string[];
+  /** Position de l'arrêt (moyenne de ses quais), si connue. */
+  lat?: number;
+  lon?: number;
 }
 
 export interface PassagesApi {

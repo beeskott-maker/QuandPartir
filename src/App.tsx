@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { currentPosition, formatDistance, nearestStop } from './lib/geo';
 import { DEFAULT_LINE } from './lib/lines';
 import type { Passage, PassagesApi, Stop } from './lib/types';
 
@@ -36,6 +37,8 @@ export function App({ api }: { api: PassagesApi }) {
   const [passages, setPassages] = useState<Passage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [nearby, setNearby] = useState<{ name: string; distance: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +82,25 @@ export function App({ api }: { api: PassagesApi }) {
   const choose = (name: string) => {
     setStopName(name);
     saveStop(name);
+    setNearby(null);
+  };
+
+  const canLocate = stops.some((s) => s.lat != null && s.lon != null);
+
+  const chooseNearest = async () => {
+    setLocating(true);
+    try {
+      const found = nearestStop(stops, await currentPosition());
+      if (found) {
+        choose(found.stop.name);
+        setNearby({ name: found.stop.name, distance: found.distance });
+      }
+      setError(null);
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setLocating(false);
+    }
   };
 
   return (
@@ -98,6 +120,16 @@ export function App({ api }: { api: PassagesApi }) {
             </option>
           ))}
         </select>
+        {canLocate && (
+          <button type="button" onClick={chooseNearest} disabled={locating}>
+            {locating ? 'Localisation…' : 'Arrêt le plus proche'}
+          </button>
+        )}
+        {nearby && nearby.name === stopName && (
+          <p className="nearby">
+            Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.
+          </p>
+        )}
       </div>
       {error && <p role="alert">{error}</p>}
       {stop && !error && !loading && passages.length === 0 && <p>Aucun passage annoncé.</p>}
