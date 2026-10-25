@@ -1,0 +1,10 @@
+# Relais vers l'API data.grandlyon.com, publié sur https://api.quandpartir.workers.dev.
+# Les identifiants GRANDLYON_USER / GRANDLYON_PASSWORD sont des secrets du Worker,
+# envoyés par la CI depuis les secrets GitHub.
+name = "api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGINS = "https://beeskott-maker.github.io,http://localhost:5173"

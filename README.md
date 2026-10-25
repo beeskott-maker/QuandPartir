@@ -27,18 +27,19 @@ En local, ce relais est le serveur de dev de Vite (`vite.config.ts`) :
 Le front appelle alors `/api/grandlyon/...`, relayé vers
 `https://data.grandlyon.com/fr/datapusher/ws/rdata/...`.
 
-Pour une version publiée, un relais déployé (fonction serveur) sera nécessaire ;
-son adresse se donne au front avec `VITE_TCL_API_URL`.
+En ligne, le relais est un Cloudflare Worker (dossier `worker/`), publié sur
+https://api.quandpartir.workers.dev. Il n'accepte que les jeux de données TCL utiles,
+garde chaque réponse 20 s en mémoire et n'autorise que les origines listées dans
+`worker/wrangler.toml`. Le front le trouve via `VITE_TCL_API_URL`.
 
 ## Déploiement
 
 Chaque push sur `main` lance la CI (`.github/workflows/deploy.yml`) : lint, types,
-tests, build, puis publication sur GitHub Pages à
+tests, build, déploiement du Worker, puis publication sur GitHub Pages à
 https://beeskott-maker.github.io/QuandPartir/.
 
-Sans relais déployé, la version publiée tourne en mode démo. Une fois un relais
-disponible, renseigner son adresse dans la variable de dépôt `VITE_TCL_API_URL`
-(Settings → Secrets and variables → Actions → Variables).
+Secrets GitHub nécessaires (Settings → Secrets and variables → Actions) :
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GRANDLYON_USER`, `GRANDLYON_PASSWORD`.
 
 ## Vérifications
 

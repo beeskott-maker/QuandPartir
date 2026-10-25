@@ -30,16 +30,40 @@ jobs:
         env:
           # GitHub Pages sert le site sous /<nom-du-repo>/.
           BASE_PATH: /${{ github.event.repository.name }}/
-          # Pas de relais déployé pour l'instant : la version publiée tourne en mode démo.
-          VITE_TCL_API_URL: ${{ vars.VITE_TCL_API_URL }}
+          # Relais Cloudflare Worker (dossier worker/), déployé par le job « worker ».
+          VITE_TCL_API_URL: https://api.quandpartir.workers.dev
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:
           path: dist
 
-  deploy:
+  worker:
     if: github.event_name != 'pull_request'
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          packageManager: npm
+          secrets: |
+            GRANDLYON_USER
+            GRANDLYON_PASSWORD
+        env:
+          GRANDLYON_USER: ${{ secrets.GRANDLYON_USER }}
+          GRANDLYON_PASSWORD: ${{ secrets.GRANDLYON_PASSWORD }}
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: [build, worker]
     runs-on: ubuntu-latest
     permissions:
       pages: write
