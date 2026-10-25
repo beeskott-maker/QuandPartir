@@ -235,8 +235,8 @@ export function App({ api }: { api: PassagesApi }) {
                     label="Inverser"
                     accessibilityLabel="Basculer sur l’autre direction"
                     dangerouslySetSvgPath={{ __path: SWAP_ARROWS_PATH }}
-                    bgColor="red"
-                    iconColor="white"
+                    bgColor="lightGray"
+                    iconColor="darkGray"
                     size="lg"
                     onClick={() => chooseDirection(otherDirection(directions, direction))}
                     disabled={directions.length < 2}
@@ -275,8 +275,8 @@ export function App({ api }: { api: PassagesApi }) {
                         label="Me localiser"
                         accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
                         icon="location"
-                        bgColor="red"
-                        iconColor="white"
+                        bgColor="lightGray"
+                        iconColor="darkGray"
                         size="lg"
                         onClick={() => chooseNearest()}
                         disabled={locating}

@@ -17,8 +17,8 @@ export function MinuteStepper({ labelId, value, min, max, onChange }: Props) {
         <IconButton
           accessibilityLabel="Une minute de moins"
           icon="dash"
-          bgColor="red"
-          iconColor="white"
+          bgColor="lightGray"
+          iconColor="darkGray"
           size="lg"
           onClick={() => onChange(value - 1)}
           disabled={value <= min}
@@ -31,8 +31,8 @@ export function MinuteStepper({ labelId, value, min, max, onChange }: Props) {
         <IconButton
           accessibilityLabel="Une minute de plus"
           icon="add"
-          bgColor="red"
-          iconColor="white"
+          bgColor="lightGray"
+          iconColor="darkGray"
           size="lg"
           onClick={() => onChange(value + 1)}
           disabled={value >= max}
