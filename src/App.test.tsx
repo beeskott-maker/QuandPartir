@@ -77,12 +77,27 @@ it('retient la ligne, l’arrêt et le temps de trajet', async () => {
   expect(walk()).toHaveTextContent('4 min');
 });
 
-it('redemande l’arrêt quand la ligne change', async () => {
+it('propose la direction sous la ligne, toutes par défaut', async () => {
+  render(<App api={createDemoApi()} />);
+  const labels = screen.getAllByText(/^(Ligne|Direction|Arrêt)$/).map((el) => el.textContent);
+  expect(labels).toEqual(['Ligne', 'Direction', 'Arrêt']);
+  expect(screen.getByLabelText('Direction')).toBeDisabled();
+  await chooseLine('T1');
+  expect(await screen.findByRole('option', { name: 'Direction B' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Direction')).toHaveValue('');
+  expect(screen.getByRole('option', { name: 'Toutes les directions' })).toBeInTheDocument();
+});
+
+it('redemande la direction et l’arrêt quand la ligne change', async () => {
   render(<App api={createDemoApi()} />);
   await chooseLine('T1');
+  await screen.findByRole('option', { name: 'Direction A' });
+  fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'Direction A' } });
   await chooseStop('Arrêt A');
   await chooseLine('T2');
+  expect(screen.getByLabelText('Direction')).toHaveValue('');
   expect(screen.getByLabelText('Arrêt')).toHaveValue('');
+  expect(localStorage.getItem('quandpartir.direction')).toBe('');
   expect(localStorage.getItem('quandpartir.arret')).toBe('');
 });
 
@@ -99,6 +114,7 @@ describe('temps de trajet', () => {
   const api: PassagesApi = {
     demo: false,
     getLines: async () => ['T1'],
+    getDirections: async () => ['IUT Feyssine', 'Part-Dieu'],
     getStops: async () => [{ name: 'Bellecour', ids: ['1'] }],
     getPassages: async () => [passage('13:03:10', 'Part-Dieu'), passage('13:10:00', 'IUT Feyssine')],
   };
@@ -132,6 +148,24 @@ describe('temps de trajet', () => {
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
   });
 
+  it('ne compte que les trams de la direction choisie', async () => {
+    render(<App api={api} />);
+    await within(widget()).findByText('3:10 minutes');
+    await screen.findByRole('option', { name: 'IUT Feyssine' });
+    fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'IUT Feyssine' } });
+    expect(await within(widget()).findByText('10:00 minutes')).toBeInTheDocument();
+    expect(widget()).toHaveTextContent('Prochain T1 direction IUT Feyssine à 13:10:00');
+    expect(localStorage.getItem('quandpartir.direction')).toBe('IUT Feyssine');
+  });
+
+  it('signale qu’aucun tram n’est annoncé dans la direction choisie', async () => {
+    localStorage.setItem('quandpartir.direction', 'Debourg');
+    render(<App api={api} />);
+    // La direction retenue reste proposée même si aucun passage ne l’annonce.
+    expect(screen.getByLabelText('Direction')).toHaveValue('Debourg');
+    expect(await within(widget()).findByText('Aucun T1 direction Debourg annoncé à cet arrêt.')).toBeInTheDocument();
+  });
+
   it('signale qu’aucun tram n’est atteignable', async () => {
     render(<App api={api} />);
     await within(widget()).findByText('3:10 minutes');
@@ -157,6 +191,7 @@ it('affiche l’erreur de l’API', async () => {
   const api: PassagesApi = {
     demo: false,
     getLines: async () => ['T1'],
+    getDirections: async () => ['IUT Feyssine', 'Part-Dieu'],
     getStops: async () => [{ name: 'Arrêt A', ids: ['1'] }],
     getPassages: () => Promise.reject(new Error('Accès refusé')),
   };

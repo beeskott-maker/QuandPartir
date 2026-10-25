@@ -21,6 +21,8 @@ function readWalkMinutes(): number {
 export function App({ api }: { api: PassagesApi }) {
   const [lines, setLines] = useState<string[]>([]);
   const [line, setLine] = useState(() => readPreference('ligne'));
+  const [directions, setDirections] = useState<string[]>([]);
+  const [direction, setDirection] = useState(() => readPreference('direction'));
   const [stops, setStops] = useState<Stop[]>([]);
   const [stopName, setStopName] = useState(() => readPreference('arret'));
   const [walkMinutes, setWalkMinutes] = useState(readWalkMinutes);
@@ -56,7 +58,24 @@ export function App({ api }: { api: PassagesApi }) {
     };
   }, [api, lineChosen]);
 
+  useEffect(() => {
+    setDirections([]);
+    if (!lineChosen) return;
+    let cancelled = false;
+    api.getDirections(lineChosen).then(
+      (result) => !cancelled && setDirections(result),
+      (e) => !cancelled && setError(message(e)),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [api, lineChosen]);
+
+  // Une direction retenue reste proposée même si aucun passage ne l'annonce en ce moment.
+  const directionOptions = direction && !directions.includes(direction) ? [direction, ...directions] : directions;
+
   const stop = stops.find((s) => s.name === stopName);
+  const shownPassages = direction ? passages.filter((p) => p.direction === direction) : passages;
 
   useEffect(() => {
     setPassages([]);
@@ -84,8 +103,14 @@ export function App({ api }: { api: PassagesApi }) {
   const chooseLine = (value: string) => {
     setLine(value);
     savePreference('ligne', value);
-    // L'arrêt dépend de la ligne : on le redemande.
+    // La direction et l'arrêt dépendent de la ligne : on les redemande.
+    chooseDirection('');
     chooseStop('');
+  };
+
+  const chooseDirection = (value: string) => {
+    setDirection(value);
+    savePreference('direction', value);
   };
 
   const chooseStop = (name: string) => {
@@ -119,7 +144,13 @@ export function App({ api }: { api: PassagesApi }) {
 
   return (
     <main className="page">
-      <DepartureWidget line={lineChosen} hasStop={Boolean(stop)} passages={passages} walkMinutes={walkMinutes} />
+      <DepartureWidget
+        line={lineChosen}
+        direction={direction}
+        hasStop={Boolean(stop)}
+        passages={shownPassages}
+        walkMinutes={walkMinutes}
+      />
       {api.demo && <p className="badge">Mode démo : passages fictifs</p>}
       <div className="form">
         <label htmlFor="line">Ligne</label>
@@ -141,6 +172,21 @@ export function App({ api }: { api: PassagesApi }) {
                 </option>
               ))}
             </optgroup>
+          ))}
+        </select>
+
+        <label htmlFor="direction">Direction</label>
+        <select
+          id="direction"
+          value={direction}
+          onChange={(e) => chooseDirection(e.target.value)}
+          disabled={!lineChosen}
+        >
+          <option value="">{lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'}</option>
+          {directionOptions.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
           ))}
         </select>
 

@@ -67,6 +67,24 @@ export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof 
     stopsFile.catch(() => (stopsFile = null));
     return stopsFile;
   };
+  // Le relais n'interroge Grand Lyon que sur la ligne demandée.
+  const fetchPassages = async (line: string, stopIds?: string[]) => {
+    const params = new URLSearchParams({ ligne: line });
+    if (stopIds) {
+      params.set('field', 'id');
+      params.set('value', stopIds.join(','));
+    }
+    const response = await fetchFn(`${root}/${PASSAGES_DATASET}/all.json?${params}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (response.status === 401 || response.status === 403) {
+      throw new TclApiError('Accès refusé par data.grandlyon.com : vérifier les identifiants et l’accès au jeu de données', response.status);
+    }
+    if (!response.ok) {
+      throw new TclApiError(`Erreur ${response.status} du service data.grandlyon.com`, response.status);
+    }
+    return parsePassages(await response.json()).filter((p) => p.line === line);
+  };
   return {
     demo: false,
     async getLines() {
@@ -75,19 +93,12 @@ export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof 
     async getStops(line) {
       return (await loadStops())[line] ?? [];
     },
+    async getDirections(line) {
+      const directions = new Set((await fetchPassages(line)).map((p) => p.direction).filter(Boolean));
+      return [...directions].sort((a, b) => a.localeCompare(b, 'fr'));
+    },
     async getPassages(stopIds, line) {
-      // Le relais n'interroge Grand Lyon que sur la ligne demandée.
-      const params = new URLSearchParams({ ligne: line, field: 'id', value: stopIds.join(',') });
-      const response = await fetchFn(`${root}/${PASSAGES_DATASET}/all.json?${params}`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (response.status === 401 || response.status === 403) {
-        throw new TclApiError('Accès refusé par data.grandlyon.com : vérifier les identifiants et l’accès au jeu de données', response.status);
-      }
-      if (!response.ok) {
-        throw new TclApiError(`Erreur ${response.status} du service data.grandlyon.com`, response.status);
-      }
-      return parsePassages(await response.json()).filter((p) => p.line === line);
+      return fetchPassages(line, stopIds);
     },
   };
 }

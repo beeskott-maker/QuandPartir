@@ -14,6 +14,9 @@ export function createDemoApi(now: () => Date = () => new Date()): PassagesApi {
     async getLines() {
       return ['T1', 'C3', 'A', 'T2'];
     },
+    async getDirections() {
+      return DEMO_DIRECTIONS;
+    },
     async getStops() {
       return DEMO_STOPS;
     },

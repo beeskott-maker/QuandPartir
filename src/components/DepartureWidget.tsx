@@ -15,6 +15,8 @@ function useNow(): Date {
 interface Props {
   /** Ligne choisie, vide tant qu'aucune ne l'est. */
   line: string;
+  /** Direction choisie, vide pour toutes. */
+  direction: string;
   /** Aucun arrêt choisi : le widget invite à en choisir un. */
   hasStop: boolean;
   passages: Passage[];
@@ -23,17 +25,18 @@ interface Props {
 }
 
 /** Compte à rebours avant de partir pour attraper le prochain passage à l'arrêt choisi. */
-export function DepartureWidget({ line, hasStop, passages, walkMinutes }: Props) {
+export function DepartureWidget({ line, direction, hasStop, passages, walkMinutes }: Props) {
   const now = useNow();
   const walkMs = walkMinutes * 60_000;
   const next = nextPassage(passages, now, walkMs);
 
+  const service = direction ? `${line} direction ${direction}` : line;
   let detail: string;
   if (next) detail = `Prochain ${next.line} direction ${next.direction} à ${formatTime(next.departure)}`;
   else if (!line) detail = 'Choisis une ligne ci-dessous.';
   else if (!hasStop) detail = `Choisis un arrêt du ${line} ci-dessous.`;
-  else if (passages.length && walkMinutes) detail = `Aucun ${line} atteignable avec ${walkMinutes} min de trajet.`;
-  else detail = `Aucun ${line} annoncé à cet arrêt.`;
+  else if (passages.length && walkMinutes) detail = `Aucun ${service} atteignable avec ${walkMinutes} min de trajet.`;
+  else detail = `Aucun ${service} annoncé à cet arrêt.`;
 
   return (
     <section className="widget" aria-live="polite" aria-label="Prochain départ">

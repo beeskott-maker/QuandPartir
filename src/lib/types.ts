@@ -28,6 +28,8 @@ export interface PassagesApi {
   readonly demo: boolean;
   /** Lignes proposées (codes TCL, par exemple « T1 »), triées. */
   getLines(): Promise<string[]>;
+  /** Directions (terminus) annoncées en ce moment sur une ligne, triées. */
+  getDirections(line: string): Promise<string[]>;
   /** Arrêts desservis par une ligne, triés par nom. */
   getStops(line: string): Promise<Stop[]>;
   /** Prochains passages d'une ligne à un arrêt (tous ses codes), triés par heure. */
