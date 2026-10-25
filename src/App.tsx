@@ -1,3 +1,4 @@
+import { Badge, BannerSlim, Button, Flex, SelectList, Text } from 'gestalt';
 import { useEffect, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
 import { MinuteStepper } from './components/MinuteStepper';
@@ -151,77 +152,91 @@ export function App({ api }: { api: PassagesApi }) {
         passages={shownPassages}
         walkMinutes={walkMinutes}
       />
-      {api.demo && <p className="badge">Mode démo : passages fictifs</p>}
-      <div className="form">
-        <label htmlFor="line">Ligne</label>
-        <select
+      <Flex direction="column" gap={6}>
+        {api.demo && (
+          <Flex>
+            <Badge text="Mode démo : passages fictifs" type="warning" />
+          </Flex>
+        )}
+
+        <SelectList
           id="line"
-          required
-          value={lineChosen}
-          onChange={(e) => chooseLine(e.target.value)}
+          label="Ligne"
+          size="lg"
+          placeholder={lines.length ? 'Choisir une ligne' : 'Chargement des lignes…'}
+          value={lineChosen || null}
+          onChange={({ value }) => chooseLine(value)}
           disabled={!lines.length}
         >
-          <option value="" disabled>
-            {lines.length ? 'Choisir une ligne' : 'Chargement des lignes…'}
-          </option>
           {groupLines(lines).map((group) => (
-            <optgroup key={group.label} label={group.label}>
+            <SelectList.Group key={group.label} label={group.label}>
               {group.lines.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
+                <SelectList.Option key={l} label={l} value={l} />
               ))}
-            </optgroup>
+            </SelectList.Group>
           ))}
-        </select>
+        </SelectList>
 
-        <label htmlFor="direction">Direction</label>
-        <select
+        <SelectList
           id="direction"
+          label="Direction"
+          size="lg"
           value={direction}
-          onChange={(e) => chooseDirection(e.target.value)}
+          onChange={({ value }) => chooseDirection(value)}
           disabled={!lineChosen}
         >
-          <option value="">{lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'}</option>
+          <SelectList.Option label={lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'} value="" />
           {directionOptions.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
+            <SelectList.Option key={d} label={d} value={d} />
           ))}
-        </select>
+        </SelectList>
 
-        <label htmlFor="stop">Arrêt</label>
-        <select
-          id="stop"
-          required
-          value={stop ? stopName : ''}
-          onChange={(e) => chooseStop(e.target.value)}
-          disabled={!stops.length}
-        >
-          <option value="" disabled>
-            {!lineChosen ? 'Choisir d’abord une ligne' : stops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'}
-          </option>
-          {stops.map((s) => (
-            <option key={s.name} value={s.name}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        {canLocate && (
-          <button type="button" onClick={chooseNearest} disabled={locating}>
-            {locating ? 'Localisation…' : 'Arrêt le plus proche'}
-          </button>
-        )}
-        {nearby && nearby.name === stopName && (
-          <p className="nearby">
-            Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.
-          </p>
-        )}
+        <Flex direction="column" gap={2}>
+          <SelectList
+            id="stop"
+            label="Arrêt"
+            size="lg"
+            placeholder={
+              !lineChosen ? 'Choisir d’abord une ligne' : stops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
+            }
+            value={stop ? stopName : null}
+            onChange={({ value }) => chooseStop(value)}
+            disabled={!stops.length}
+          >
+            {stops.map((s) => (
+              <SelectList.Option key={s.name} label={s.name} value={s.name} />
+            ))}
+          </SelectList>
+          {canLocate && (
+            <Button
+              text={locating ? 'Localisation…' : 'Arrêt le plus proche'}
+              iconStart="location"
+              size="lg"
+              fullWidth
+              onClick={chooseNearest}
+              disabled={locating}
+            />
+          )}
+          {nearby && nearby.name === stopName && (
+            <Text color="subtle" size="200">
+              Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.
+            </Text>
+          )}
+        </Flex>
 
-        <span id="walk-label">Temps pour rejoindre l’arrêt</span>
-        <MinuteStepper labelId="walk-label" value={walkMinutes} min={0} max={MAX_WALK_MINUTES} onChange={chooseWalk} />
-      </div>
-      {error && <p role="alert">{error}</p>}
+        <Flex direction="column" gap={2}>
+          <Text id="walk-label" size="100">
+            Temps pour rejoindre l’arrêt
+          </Text>
+          <MinuteStepper labelId="walk-label" value={walkMinutes} min={0} max={MAX_WALK_MINUTES} onChange={chooseWalk} />
+        </Flex>
+
+        {error && (
+          <div role="alert">
+            <BannerSlim type="error" iconAccessibilityLabel="Erreur" message={error} />
+          </div>
+        )}
+      </Flex>
     </main>
   );
 }

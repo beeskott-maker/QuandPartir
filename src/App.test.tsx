@@ -42,7 +42,8 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   const getPassages = vi.spyOn(api, 'getPassages');
   render(<App api={api} />);
   expect(screen.queryByRole('heading', { name: 'QuandPartir' })).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Ligne')).toBeRequired();
+  // Ligne obligatoire : rien n'est choisi d'office et l'arrêt attend la ligne.
+  expect(await within(screen.getByLabelText('Ligne')).findByText('Choisir une ligne')).toBeDisabled();
   expect(screen.getByLabelText('Arrêt')).toBeDisabled();
   expect(await within(widget()).findByText('Choisis une ligne ci-dessous.')).toBeInTheDocument();
 
@@ -96,7 +97,7 @@ it('redemande la direction et l’arrêt quand la ligne change', async () => {
   await chooseStop('Arrêt A');
   await chooseLine('T2');
   expect(screen.getByLabelText('Direction')).toHaveValue('');
-  expect(screen.getByLabelText('Arrêt')).toHaveValue('');
+  expect(await within(widget()).findByText('Choisis un arrêt du T2 ci-dessous.')).toBeInTheDocument();
   expect(localStorage.getItem('quandpartir.direction')).toBe('');
   expect(localStorage.getItem('quandpartir.arret')).toBe('');
 });
