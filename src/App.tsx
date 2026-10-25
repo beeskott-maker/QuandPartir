@@ -229,135 +229,137 @@ export function App({ api }: { api: PassagesApi }) {
             </Flex>
           )}
 
-          <Accordion.Expandable
-            id="reglages"
-            borderStyle="sm"
-            accessibilityExpandLabel="Déplier les réglages"
-            accessibilityCollapseLabel="Replier les réglages"
-            expandedIndex={settingsOpen || settingsMissing ? 0 : null}
-            onExpandedChange={(index) => setSettingsOpen(index === 0)}
-            items={[
-              {
-                title: 'Réglages',
-                children: (
-                  <div className="settings">
-                    <div className="settings-group">
-                      <div className="settings-fields">
-                      <Flex direction="column" gap={6}>
-                        <SelectList
-                          id="line"
-                          label="Ligne"
-                          size="lg"
-                          placeholder={lines.length ? 'Choisir une ligne' : 'Chargement des lignes…'}
-                          value={lineChosen || null}
-                          onChange={({ value }) => chooseLine(value)}
-                          disabled={!lines.length}
-                        >
-                          {groupLines(lines).map((group) => (
-                            <SelectList.Group key={group.label} label={group.label}>
-                              {group.lines.map((l) => (
-                                <SelectList.Option key={l} label={l} value={l} />
-                              ))}
-                            </SelectList.Group>
-                          ))}
-                        </SelectList>
-
-                        <div className="with-action">
-                          <Flex alignItems="end" gap={2}>
-                            <Flex.Item flex="grow" minWidth={0}>
-                              <SelectList
-                                id="direction"
-                                label="Direction"
-                                size="lg"
-                                placeholder={
-                                  !lineChosen
-                                    ? 'Choisir d’abord une ligne'
-                                    : directions.length
-                                      ? 'Choisir une direction'
-                                      : 'Aucune direction annoncée'
-                                }
-                                value={direction || null}
-                                onChange={({ value }) => chooseDirection(value)}
-                                disabled={!directionOptions.length}
-                              >
-                                {directionOptions.map((d) => (
-                                  <SelectList.Option key={d} label={d} value={d} />
+          <div className="settings-accordion">
+            <Accordion.Expandable
+              id="reglages"
+              borderStyle="sm"
+              accessibilityExpandLabel="Déplier les réglages"
+              accessibilityCollapseLabel="Replier les réglages"
+              expandedIndex={settingsOpen || settingsMissing ? 0 : null}
+              onExpandedChange={(index) => setSettingsOpen(index === 0)}
+              items={[
+                {
+                  title: 'Réglages',
+                  children: (
+                    <div className="settings">
+                      <div className="settings-group">
+                        <div className="settings-fields">
+                        <Flex direction="column" gap={6}>
+                          <SelectList
+                            id="line"
+                            label="Ligne"
+                            size="lg"
+                            placeholder={lines.length ? 'Choisir une ligne' : 'Chargement des lignes…'}
+                            value={lineChosen || null}
+                            onChange={({ value }) => chooseLine(value)}
+                            disabled={!lines.length}
+                          >
+                            {groupLines(lines).map((group) => (
+                              <SelectList.Group key={group.label} label={group.label}>
+                                {group.lines.map((l) => (
+                                  <SelectList.Option key={l} label={l} value={l} />
                                 ))}
-                              </SelectList>
-                            </Flex.Item>
-                            <LabeledIconButton
-                              label="Inverser"
-                              accessibilityLabel="Basculer sur l’autre direction"
-                              dangerouslySetSvgPath={{ __path: SWAP_ARROWS_PATH }}
-                              bgColor="lightGray"
-                              iconColor="darkGray"
-                              size="lg"
-                              onClick={() => chooseDirection(otherDirection(directions, direction))}
-                              disabled={directions.length < 2}
-                            />
-                          </Flex>
-                        </div>
-                        <Flex direction="column" gap={2}>
+                              </SelectList.Group>
+                            ))}
+                          </SelectList>
+
                           <div className="with-action">
                             <Flex alignItems="end" gap={2}>
                               <Flex.Item flex="grow" minWidth={0}>
                                 <SelectList
-                                  id="stop"
-                                  label="Arrêt"
+                                  id="direction"
+                                  label="Direction"
                                   size="lg"
                                   placeholder={
-                                    !lineChosen ? 'Choisir d’abord une ligne' : lineStops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
+                                    !lineChosen
+                                      ? 'Choisir d’abord une ligne'
+                                      : directions.length
+                                        ? 'Choisir une direction'
+                                        : 'Aucune direction annoncée'
                                   }
-                                  value={stop ? stopName : null}
-                                  onChange={({ value }) => chooseStop(value)}
-                                  disabled={!lineStops.length}
+                                  value={direction || null}
+                                  onChange={({ value }) => chooseDirection(value)}
+                                  disabled={!directionOptions.length}
                                 >
-                                  {orderedStops.map((s) => (
-                                    <SelectList.Option key={s.name} label={s.name} value={s.name} />
+                                  {directionOptions.map((d) => (
+                                    <SelectList.Option key={d} label={d} value={d} />
                                   ))}
                                 </SelectList>
                               </Flex.Item>
-                              {canLocate && (
-                                <LabeledIconButton
-                                  label="Me localiser"
-                                  accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
-                                  icon="location"
-                                  bgColor="lightGray"
-                                  iconColor="darkGray"
-                                  size="lg"
-                                  onClick={() => chooseNearest()}
-                                  disabled={locating}
-                                />
-                              )}
+                              <LabeledIconButton
+                                label="Inverser"
+                                accessibilityLabel="Basculer sur l’autre direction"
+                                dangerouslySetSvgPath={{ __path: SWAP_ARROWS_PATH }}
+                                bgColor="lightGray"
+                                iconColor="darkGray"
+                                size="lg"
+                                onClick={() => chooseDirection(otherDirection(directions, direction))}
+                                disabled={directions.length < 2}
+                              />
                             </Flex>
                           </div>
-                          {nearby && nearby.name === stopName && (
-                            <Text color="subtle" size="200">
-                              Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.
-                            </Text>
-                          )}
+                          <Flex direction="column" gap={2}>
+                            <div className="with-action">
+                              <Flex alignItems="end" gap={2}>
+                                <Flex.Item flex="grow" minWidth={0}>
+                                  <SelectList
+                                    id="stop"
+                                    label="Arrêt"
+                                    size="lg"
+                                    placeholder={
+                                      !lineChosen ? 'Choisir d’abord une ligne' : lineStops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
+                                    }
+                                    value={stop ? stopName : null}
+                                    onChange={({ value }) => chooseStop(value)}
+                                    disabled={!lineStops.length}
+                                  >
+                                    {orderedStops.map((s) => (
+                                      <SelectList.Option key={s.name} label={s.name} value={s.name} />
+                                    ))}
+                                  </SelectList>
+                                </Flex.Item>
+                                {canLocate && (
+                                  <LabeledIconButton
+                                    label="Me localiser"
+                                    accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
+                                    icon="location"
+                                    bgColor="lightGray"
+                                    iconColor="darkGray"
+                                    size="lg"
+                                    onClick={() => chooseNearest()}
+                                    disabled={locating}
+                                  />
+                                )}
+                              </Flex>
+                            </div>
+                            {nearby && nearby.name === stopName && (
+                              <Text color="subtle" size="200">
+                                Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.
+                              </Text>
+                            )}
+                          </Flex>
                         </Flex>
-                      </Flex>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="settings-group">
-                      <div className="settings-fields">
-                      <Flex direction="column" gap={6}>
-                        <Flex direction="column" gap={4}>
-                          <Text id="walk-label" size="200">
-                            Temps pour rejoindre l’arrêt
-                          </Text>
-                          <MinuteStepper labelId="walk-label" value={walkMinutes} min={0} max={MAX_WALK_MINUTES} onChange={chooseWalk} />
+                      <div className="settings-group">
+                        <div className="settings-fields">
+                        <Flex direction="column" gap={6}>
+                          <Flex direction="column" gap={4}>
+                            <Text id="walk-label" size="200">
+                              Temps pour rejoindre l’arrêt
+                            </Text>
+                            <MinuteStepper labelId="walk-label" value={walkMinutes} min={0} max={MAX_WALK_MINUTES} onChange={chooseWalk} />
+                          </Flex>
                         </Flex>
-                      </Flex>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ),
-              },
-            ]}
-          />
+                  ),
+                },
+              ]}
+            />
+          </div>
 
           {error && (
             <div role="alert">

@@ -56,6 +56,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Flèche (dépliée / repliée) de la section « Réglages », dans la couleur du
+   bouton principal Gestalt. Seul l'en-tête de l'accordéon a role="button". */
+.settings-accordion [role='button'] svg {
+  fill: var(--color-background-button-primary-default);
+}
+
 /* Contenu de la section « Réglages » : 8 px d'air en plus avant le bas du cadre. */
 .settings {
   padding-bottom: 8px;
