@@ -89,6 +89,21 @@ it('propose la direction sous la ligne, toutes par défaut', async () => {
   expect(screen.getByRole('option', { name: 'Toutes les directions' })).toBeInTheDocument();
 });
 
+it('bascule sur l’autre direction', async () => {
+  render(<App api={createDemoApi()} />);
+  const swap = screen.getByRole('button', { name: 'Basculer sur l’autre direction' });
+  expect(swap).toBeDisabled();
+  await chooseLine('T1');
+  await screen.findByRole('option', { name: 'Direction B' });
+  fireEvent.click(swap);
+  expect(screen.getByLabelText('Direction')).toHaveValue('Direction A');
+  fireEvent.click(swap);
+  expect(screen.getByLabelText('Direction')).toHaveValue('Direction B');
+  expect(localStorage.getItem('quandpartir.direction')).toBe('Direction B');
+  fireEvent.click(swap);
+  expect(screen.getByLabelText('Direction')).toHaveValue('Direction A');
+});
+
 it('redemande la direction et l’arrêt quand la ligne change', async () => {
   render(<App api={createDemoApi()} />);
   await chooseLine('T1');

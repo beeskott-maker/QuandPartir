@@ -2,6 +2,7 @@ import { Badge, BannerSlim, Flex, IconButton, SelectList, Text } from 'gestalt';
 import { useEffect, useRef, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
 import { MinuteStepper } from './components/MinuteStepper';
+import { otherDirection } from './lib/directions';
 import { currentPosition, formatDistance, nearestStop } from './lib/geo';
 import { groupLines } from './lib/lines';
 import { readPreference, savePreference } from './lib/preferences';
@@ -191,19 +192,32 @@ export function App({ api }: { api: PassagesApi }) {
           ))}
         </SelectList>
 
-        <SelectList
-          id="direction"
-          label="Direction"
-          size="lg"
-          value={direction}
-          onChange={({ value }) => chooseDirection(value)}
-          disabled={!lineChosen}
-        >
-          <SelectList.Option label={lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'} value="" />
-          {directionOptions.map((d) => (
-            <SelectList.Option key={d} label={d} value={d} />
-          ))}
-        </SelectList>
+        <Flex alignItems="end" gap={2}>
+          <Flex.Item flex="grow" minWidth={0}>
+            <SelectList
+              id="direction"
+              label="Direction"
+              size="lg"
+              value={direction}
+              onChange={({ value }) => chooseDirection(value)}
+              disabled={!lineChosen}
+            >
+              <SelectList.Option label={lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'} value="" />
+              {directionOptions.map((d) => (
+                <SelectList.Option key={d} label={d} value={d} />
+              ))}
+            </SelectList>
+          </Flex.Item>
+          <IconButton
+            accessibilityLabel="Basculer sur l’autre direction"
+            tooltip={{ text: 'Autre direction' }}
+            icon="swap"
+            bgColor="lightGray"
+            size="lg"
+            onClick={() => chooseDirection(otherDirection(directions, direction))}
+            disabled={directions.length < 2}
+          />
+        </Flex>
 
         <Flex direction="column" gap={2}>
           <Flex alignItems="end" gap={2}>
