@@ -29,6 +29,8 @@ const MAX_FEATURES = 5000;
 /** Calcul d'itinéraire de la Géoplateforme IGN : public, gratuit, sans clé. */
 const IGN_ROUTE_URL = 'https://data.geopf.fr/navigation/itineraire';
 const ROUTE_PATH = '/itineraire';
+/** Graphes nationaux de l'IGN avec un profil piéton (voir /navigation/getcapabilities), essayés dans l'ordre. */
+const IGN_RESOURCES = ['bdtopo-valhalla', 'bdtopo-pgr'];
 /** « lon,lat » en degrés décimaux. */
 const POINT_PATTERN = /^(-?\d{1,3}(?:\.\d+)?),(-?\d{1,2}(?:\.\d+)?)$/;
 /** Au-delà, ce n'est plus un trajet à pied jusqu'à un arrêt. */
@@ -126,28 +128,38 @@ async function walkRoute(url: URL, env: Env, cors: Record<string, string>): Prom
   if (Math.hypot(start[0] - end[0], start[1] - end[1]) * 111 > MAX_WALK_KM * 1.5) {
     return error('Trajet trop long pour être fait à pied', 400, cors);
   }
-  const query = new URLSearchParams({
-    resource: 'bdtopo-osrm',
-    profile: 'pedestrian',
-    optimization: 'fastest',
-    start: start.join(','),
-    end: end.join(','),
-    timeUnit: 'second',
-    distanceUnit: 'meter',
-    getSteps: 'false',
-  });
-  let body: { duration?: unknown; distance?: unknown };
-  try {
-    const upstream = await fetch(`${env.IGN_ROUTE_URL ?? IGN_ROUTE_URL}?${query}`, { headers: { Accept: 'application/json' } });
-    if (!upstream.ok) return error(`Erreur ${upstream.status} du calcul d’itinéraire IGN`, 502, cors);
-    body = await upstream.json();
-  } catch {
-    return error('Calcul d’itinéraire IGN injoignable', 502, cors);
+  let failure = 'Calcul d’itinéraire IGN injoignable';
+  for (const resource of IGN_RESOURCES) {
+    const query = new URLSearchParams({
+      resource,
+      profile: 'pedestrian',
+      optimization: 'fastest',
+      start: start.join(','),
+      end: end.join(','),
+      timeUnit: 'second',
+      distanceUnit: 'meter',
+      getSteps: 'false',
+      getBbox: 'false',
+    });
+    try {
+      const upstream = await fetch(`${env.IGN_ROUTE_URL ?? IGN_ROUTE_URL}?${query}`, { headers: { Accept: 'application/json' } });
+      if (!upstream.ok) {
+        failure = `Erreur ${upstream.status} du calcul d’itinéraire IGN (${resource})`;
+        continue;
+      }
+      const body = (await upstream.json()) as { duration?: unknown; distance?: unknown };
+      const duration = Number(body.duration);
+      const distance = Number(body.distance);
+      if (!Number.isFinite(duration) || duration < 0) {
+        failure = `Réponse inattendue du calcul d’itinéraire IGN (${resource})`;
+        continue;
+      }
+      return json({ duration, distance: Number.isFinite(distance) ? distance : null }, 200, cors);
+    } catch {
+      // Ressource suivante.
+    }
   }
-  const duration = Number(body.duration);
-  const distance = Number(body.distance);
-  if (!Number.isFinite(duration) || duration < 0) return error('Réponse inattendue du calcul d’itinéraire IGN', 502, cors);
-  return json({ duration, distance: Number.isFinite(distance) ? distance : null }, 200, cors);
+  return error(failure, 502, cors);
 }
 
 export default {

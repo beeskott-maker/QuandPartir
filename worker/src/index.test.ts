@@ -113,7 +113,7 @@ describe('trajet à pied', () => {
     const url = new URL((fetchMock.mock.calls[0] as [string])[0]);
     expect(url.origin + url.pathname).toBe('https://ign.test/itineraire');
     expect(Object.fromEntries(url.searchParams)).toMatchObject({
-      resource: 'bdtopo-osrm',
+      resource: 'bdtopo-valhalla',
       profile: 'pedestrian',
       start: '4.83201,45.7578',
       end: '4.8357,45.7606',
@@ -129,10 +129,22 @@ describe('trajet à pied', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('essaie le second graphe de l’IGN si le premier échoue', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Not found' }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ duration: 300, distance: 350 }), { status: 200 }));
+    const response = await route('start=4.832,45.7578&end=4.8357,45.7606');
+    expect(await response.json()).toEqual({ duration: 300, distance: 350 });
+    const resources = fetchMock.mock.calls.map(([url]) => new URL(url as string).searchParams.get('resource'));
+    expect(resources).toEqual(['bdtopo-valhalla', 'bdtopo-pgr']);
+  });
+
   it('signale une réponse de l’IGN inutilisable', async () => {
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'x' }), { status: 200 }));
-    expect((await route('start=4.832,45.7578&end=4.8357,45.7606')).status).toBe(502);
-    fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
-    expect((await route('start=4.832,45.7578&end=4.8357,45.7606')).status).toBe(502);
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'x' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response('', { status: 500 }));
+    const response = await route('start=4.832,45.7578&end=4.8357,45.7606');
+    expect(response.status).toBe(502);
+    expect((await response.json()).error).toBe('Erreur 500 du calcul d’itinéraire IGN (bdtopo-pgr)');
   });
 });
