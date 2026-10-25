@@ -464,8 +464,10 @@ describe('au chargement', () => {
     render(<App api={createDemoApi()} />);
     await openSettings();
     await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('Localisation en cours…')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Localisation|Arrêt le plus proche/ }));
     await waitFor(() => expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt C'));
+    expect(screen.queryByText('Localisation en cours…')).not.toBeInTheDocument();
   });
 
   it('garde l’arrêt retenu, sans message, si la localisation est refusée', async () => {

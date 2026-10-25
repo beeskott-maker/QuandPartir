@@ -337,6 +337,11 @@ export function App({ api }: { api: PassagesApi }) {
                                 )}
                               </Flex>
                             </div>
+                            {locating && (
+                              <Text color="subtle" size="200">
+                                Localisation en cours…
+                              </Text>
+                            )}
                             {locateError && (
                               <div role="alert">
                                 <Text color="error" size="200">

@@ -1,4 +1,4 @@
-import { distanceMeters, formatDistance, nearestStop } from './geo';
+import { currentPosition, distanceMeters, formatDistance, LOCATE_TIMEOUT_MS, nearestStop } from './geo';
 
 // Bellecour et Perrache, environ 1,2 km.
 const bellecour = { lat: 45.7578, lon: 4.832 };
@@ -25,4 +25,19 @@ it('trouve l’arrêt le plus proche, en ignorant ceux sans coordonnées', () =>
 it('formate une distance', () => {
   expect(formatDistance(83)).toBe('80 m');
   expect(formatDistance(1234)).toBe('1,2 km');
+});
+
+describe('currentPosition', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    Reflect.deleteProperty(navigator, 'geolocation');
+  });
+
+  it('abandonne si le navigateur ne répond jamais', async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: vi.fn() }, configurable: true });
+    const result = currentPosition();
+    vi.advanceTimersByTime(LOCATE_TIMEOUT_MS);
+    await expect(result).rejects.toThrow('Position introuvable');
+  });
 });

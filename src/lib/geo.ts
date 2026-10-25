@@ -33,24 +33,40 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km`;
 }
 
-/** Position actuelle de l'appareil (demande l'autorisation au premier appel). */
+/** Délai au-delà duquel on abandonne, même si le navigateur ne répond jamais. */
+export const LOCATE_TIMEOUT_MS = 15_000;
+
+const NOT_FOUND = 'Position introuvable pour le moment. Vérifie que la localisation est activée, puis réessaie.';
+
+/**
+ * Position actuelle de l'appareil (demande l'autorisation au premier appel).
+ * La précision du Wi-Fi et des antennes suffit pour trouver un arrêt, et elle
+ * répond plus vite que le GPS en intérieur. Certains navigateurs ne rappellent
+ * jamais (autorisation laissée en suspens) : un délai garantit une réponse.
+ */
 export function currentPosition(): Promise<Position> {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) {
       reject(new Error('La géolocalisation n’est pas disponible sur cet appareil.'));
       return;
     }
+    const watchdog = setTimeout(() => reject(new Error(NOT_FOUND)), LOCATE_TIMEOUT_MS);
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({ lat: coords.latitude, lon: coords.longitude }),
-      (e) =>
+      ({ coords }) => {
+        clearTimeout(watchdog);
+        resolve({ lat: coords.latitude, lon: coords.longitude });
+      },
+      (e) => {
+        clearTimeout(watchdog);
         reject(
           new Error(
             e.code === e.PERMISSION_DENIED
               ? 'Localisation refusée : autorise-la dans le navigateur pour trouver l’arrêt le plus proche.'
-              : 'Position introuvable pour le moment.',
+              : NOT_FOUND,
           ),
-        ),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+        );
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
   });
 }
