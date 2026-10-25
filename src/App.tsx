@@ -4,7 +4,7 @@ import { DepartureWidget } from './components/DepartureWidget';
 import { LabeledIconButton } from './components/LabeledIconButton';
 import { MinuteStepper } from './components/MinuteStepper';
 import { otherDirection } from './lib/directions';
-import { currentPosition, estimateWalkSeconds, formatDistance, nearestStop, type Position } from './lib/geo';
+import { currentPosition, distanceMeters, estimateWalkSeconds, formatDistance, nearestStop, type Position } from './lib/geo';
 import { groupLines } from './lib/lines';
 import { readPreference, savePreference } from './lib/preferences';
 import { orderStops } from './lib/stopOrder';
@@ -42,6 +42,8 @@ export function App({ api }: { api: PassagesApi }) {
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [nearby, setNearby] = useState<{ name: string; distance: number } | null>(null);
+  // Dernière position connue de l'appareil : sert au temps de marche vers l'arrêt choisi.
+  const [position, setPosition] = useState<Position | null>(null);
   // Temps de marche calculé depuis la position, pour cet arrêt : affiché tant qu'il est retenu.
   const [walkEstimate, setWalkEstimate] = useState<{ stop: string; minutes: number } | null>(null);
   // Échec du bouton « Me localiser », affiché sous l'arrêt pour rester visible.
@@ -162,10 +164,14 @@ export function App({ api }: { api: PassagesApi }) {
     savePreference('direction', value);
   };
 
+  // Arrêt dont le temps de marche a été réglé à la main : on ne le recalcule plus.
+  const manualWalkFor = useRef<string | null>(null);
+
   const chooseStop = (name: string) => {
     setStopName(name);
     savePreference('arret', name);
     setNearby(null);
+    manualWalkFor.current = null;
   };
 
   const chooseWalk = (minutes: number) => {
@@ -182,12 +188,13 @@ export function App({ api }: { api: PassagesApi }) {
   }, [lineChosen]);
 
   /**
-   * Sélectionne l'arrêt le plus proche et règle le temps pour le rejoindre à pied.
+   * Sélectionne l'arrêt le plus proche (le temps de marche suit, voir plus bas).
    * Lancée automatiquement au chargement, un échec (localisation refusée…) est
    * silencieux : l'arrêt retenu reste choisi. Une position rapide (Wi-Fi) sert
-   * d'abord, puis le GPS affine si possible. Si la ligne a changé entre-temps, si
-   * une demande plus récente a été lancée (une demande peut ne jamais aboutir) ou
-   * si l'arrêt ou le temps a été changé à la main, la réponse est ignorée.
+   * d'abord, puis le GPS affine si possible. La position est toujours retenue ;
+   * l'arrêt n'est pas changé si la ligne a changé entre-temps, si une demande plus
+   * récente a été lancée (une demande peut ne jamais aboutir) ou si l'arrêt a été
+   * choisi à la main.
    */
   const locateRequest = useRef(0);
   const cancelLocate = () => {
@@ -200,28 +207,19 @@ export function App({ api }: { api: PassagesApi }) {
     const candidates = lineStops;
     const stale = () => request !== locateRequest.current || currentLine.current !== line;
 
-    const applyPosition = async (position: Position) => {
-      const found = nearestStop(candidates, position);
-      if (!found) return;
-      const { name, lat, lon } = found.stop;
-      chooseStop(name);
-      setNearby({ name, distance: found.distance });
-      // Trajet à pied de l'IGN, sinon estimation d'après la distance à vol d'oiseau.
-      const seconds = await api
-        .getWalkSeconds(position, { lat: lat!, lon: lon! })
-        .catch(() => estimateWalkSeconds(found.distance));
+    const applyPosition = (found: Position) => {
+      setPosition(found);
       if (stale()) return;
-      const minutes = Math.min(MAX_WALK_MINUTES, Math.ceil(seconds / 60));
-      chooseWalk(minutes);
-      setWalkEstimate({ stop: name, minutes });
+      const nearest = nearestStop(candidates, found);
+      if (!nearest) return;
+      chooseStop(nearest.stop.name);
+      setNearby({ name: nearest.stop.name, distance: nearest.distance });
     };
 
     setLocating(true);
     setLocateError(null);
     try {
-      const position = await currentPosition();
-      if (stale()) return;
-      await applyPosition(position);
+      applyPosition(await currentPosition());
       setError(null);
     } catch (e) {
       if (!auto && request === locateRequest.current) setLocateError(message(e));
@@ -229,14 +227,50 @@ export function App({ api }: { api: PassagesApi }) {
     } finally {
       if (request === locateRequest.current) setLocating(false);
     }
-    // Le GPS, plus lent, affine l'arrêt et le temps de marche ; sans lui on garde l'estimation.
+    // Le GPS, plus lent, affine l'arrêt et le temps de marche ; sans lui on garde la position rapide.
     try {
-      const precise = await currentPosition({ precise: true });
-      if (!stale()) await applyPosition(precise);
+      applyPosition(await currentPosition({ precise: true }));
     } catch {
       // Position rapide conservée.
     }
   };
+
+  /** Position seule, sans changer d'arrêt : quand on choisit un arrêt sans s'être localisé. */
+  const followPosition = async () => {
+    try {
+      setPosition(await currentPosition());
+      setPosition(await currentPosition({ precise: true }));
+    } catch {
+      // Sans position, le temps de marche reste celui réglé.
+    }
+  };
+
+  /**
+   * Temps pour rejoindre l'arrêt choisi, recalculé dès que l'arrêt (quelle qu'en soit
+   * la raison : arrêt, ligne…) ou la position change : trajet à pied du relais (IGN,
+   * sinon OpenStreetMap), à défaut estimation à vol d'oiseau. Un temps réglé à la main
+   * pour cet arrêt n'est plus remplacé.
+   */
+  useEffect(() => {
+    if (!stop || stop.lat == null || stop.lon == null || !position) return;
+    if (manualWalkFor.current === stop.name) return;
+    let cancelled = false;
+    const name = stop.name;
+    const target = { lat: stop.lat, lon: stop.lon };
+    api
+      .getWalkSeconds(position, target)
+      .catch(() => estimateWalkSeconds(distanceMeters(position, target)))
+      .then((seconds) => {
+        if (cancelled || manualWalkFor.current === name) return;
+        const minutes = Math.min(MAX_WALK_MINUTES, Math.ceil(seconds / 60));
+        setWalkMinutes(minutes);
+        savePreference('trajet', String(minutes));
+        setWalkEstimate({ stop: name, minutes });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, stop, position]);
 
   // Au chargement, avec la ligne retenue, on cherche l'arrêt le plus proche une seule fois.
   const autoLocate = useRef(Boolean(readPreference('ligne')));
@@ -349,6 +383,7 @@ export function App({ api }: { api: PassagesApi }) {
                                     onChange={({ value }) => {
                                       cancelLocate();
                                       chooseStop(value);
+                                      if (!position) followPosition();
                                     }}
                                     disabled={!lineStops.length}
                                   >
@@ -406,6 +441,7 @@ export function App({ api }: { api: PassagesApi }) {
                               max={MAX_WALK_MINUTES}
                               onChange={(minutes) => {
                                 cancelLocate();
+                                manualWalkFor.current = stopName;
                                 chooseWalk(minutes);
                               }}
                             />

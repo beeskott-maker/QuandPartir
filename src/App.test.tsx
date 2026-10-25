@@ -436,6 +436,35 @@ it('remplace par l’arrêt le plus proche un arrêt choisi auparavant', async (
   expect(localStorage.getItem('quandpartir.arret')).toBe('Arrêt B');
 });
 
+it('recalcule le temps de marche pour l’arrêt choisi à la main', async () => {
+  mockPosition({ lat: 45.7486, lon: 4.8256 });
+  const api = createDemoApi();
+  const getWalkSeconds = vi.spyOn(api, 'getWalkSeconds').mockResolvedValue(240);
+  render(<App api={api} />);
+  await openSettings();
+  await chooseLine('T1');
+  fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
+  await waitFor(() => expect(walk()).toHaveTextContent('4 min'));
+  getWalkSeconds.mockResolvedValue(900);
+  await chooseStop('Arrêt C');
+  await waitFor(() => expect(walk()).toHaveTextContent('15 min'));
+  expect(getWalkSeconds).toHaveBeenLastCalledWith({ lat: 45.7486, lon: 4.8256 }, { lat: 45.7606, lon: 4.8594 });
+  expect(screen.getByText('Trajet à pied calculé depuis ta position.')).toBeInTheDocument();
+});
+
+it('se localise pour le temps de marche quand on choisit un arrêt sans s’être localisé', async () => {
+  mockPosition({ lat: 45.7486, lon: 4.8256 });
+  const api = createDemoApi();
+  vi.spyOn(api, 'getWalkSeconds').mockResolvedValue(600);
+  render(<App api={api} />);
+  await openSettings();
+  await chooseLine('T1');
+  await chooseStop('Arrêt A');
+  await waitFor(() => expect(walk()).toHaveTextContent('10 min'));
+  // L'arrêt choisi reste celui de l'utilisateur, même si un autre est plus proche.
+  expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt A');
+});
+
 describe('au chargement', () => {
   beforeEach(() => {
     localStorage.setItem('quandpartir.ligne', 'T1');
