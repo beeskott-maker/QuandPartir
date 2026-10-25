@@ -35,8 +35,9 @@ body {
 }
 
 .widget-countdown {
-  /* Tient sur une ligne, du téléphone (≈ 42 px) au grand écran. */
-  font-size: clamp(32px, 10.5vw, 64px);
+  /* Le plus grand possible sur une ligne, « 29:59 min. » compris, du téléphone au grand écran. */
+  /* Place disponible = écran − 96 px de marges (page et widget) ; « 29:59 min. » ≈ 4,95 em. */
+  font-size: min(calc((100vw - 96px) / 5.1), 84px);
   font-weight: 500;
   white-space: nowrap;
   line-height: 1.1;

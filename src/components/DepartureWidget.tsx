@@ -51,7 +51,7 @@ export function DepartureWidget({ line, direction, hasStop, passages, walkMinute
     <section className="widget" aria-live="polite" aria-label="Prochain départ">
       <p className="widget-label">Partir dans</p>
       <p className="widget-countdown">
-        {next ? `${formatCountdown(next.departure.getTime() - walkMs - now.getTime())} minutes` : '–'}
+        {next ? `${formatCountdown(next.departure.getTime() - walkMs - now.getTime())} min.` : '–'}
       </p>
       <p className="widget-detail">{detail}</p>
     </section>

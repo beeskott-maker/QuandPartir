@@ -50,7 +50,7 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   await chooseLine('T2');
   expect(widget()).toHaveTextContent('Choisis un arrêt du tram T2 ci-dessous.');
   await chooseStop('Arrêt B');
-  expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
+  expect(await within(widget()).findByText(/\d+:\d{2} min\./)).toBeInTheDocument();
   expect(widget()).toHaveTextContent(/Prochain tram T2 direction Direction . à \d{2}:\d{2}:\d{2}/);
   // Un seul appel, pour la ligne : l'arrêt est filtré dans l'appli.
   expect(getLinePassages).toHaveBeenCalledTimes(1);
@@ -77,7 +77,7 @@ it('retient la ligne, l’arrêt et le temps de trajet', async () => {
   localStorage.setItem('quandpartir.arret', 'Arrêt C');
   localStorage.setItem('quandpartir.trajet', '4');
   render(<App api={createDemoApi()} />);
-  expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
+  expect(await within(widget()).findByText(/\d+:\d{2} min\./)).toBeInTheDocument();
   expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt C');
   expect(walk()).toHaveTextContent('4 min');
 });
@@ -168,7 +168,7 @@ describe('temps de trajet', () => {
 
   it('compte à rebours jusqu’au passage quand on est déjà à l’arrêt', async () => {
     render(<App api={api} />);
-    expect(await within(widget()).findByText('3:10 minutes')).toBeInTheDocument();
+    expect(await within(widget()).findByText('3:10 min.')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:03:10');
     // « Prochain tram T1 » sur une ligne, la direction sur la suivante.
     expect(widget().querySelector('.widget-detail br')).not.toBeNull();
@@ -176,23 +176,23 @@ describe('temps de trajet', () => {
 
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
     render(<App api={api} />);
-    await within(widget()).findByText('3:10 minutes');
+    await within(widget()).findByText('3:10 min.');
     clickWalk('plus', 2);
     expect(walk()).toHaveTextContent('2 min');
-    expect(await within(widget()).findByText('1:10 minutes')).toBeInTheDocument();
+    expect(await within(widget()).findByText('1:10 min.')).toBeInTheDocument();
     clickWalk('plus', 3);
     // Le tram de 13:03 est manqué : le suivant vers Part-Dieu passe à 13:12.
-    expect(await within(widget()).findByText('7:00 minutes')).toBeInTheDocument();
+    expect(await within(widget()).findByText('7:00 min.')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:12:00');
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
   });
 
   it('ne compte que les trams de la direction choisie', async () => {
     render(<App api={api} />);
-    await within(widget()).findByText('3:10 minutes');
+    await within(widget()).findByText('3:10 min.');
     await screen.findByRole('option', { name: 'IUT Feyssine' });
     fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'IUT Feyssine' } });
-    expect(await within(widget()).findByText('10:00 minutes')).toBeInTheDocument();
+    expect(await within(widget()).findByText('10:00 min.')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('Prochain tram T1 direction IUT Feyssine à 13:10:00');
     expect(localStorage.getItem('quandpartir.direction')).toBe('IUT Feyssine');
   });
@@ -207,7 +207,7 @@ describe('temps de trajet', () => {
 
   it('signale qu’aucun tram n’est atteignable', async () => {
     render(<App api={api} />);
-    await within(widget()).findByText('3:10 minutes');
+    await within(widget()).findByText('3:10 min.');
     clickWalk('plus', 15);
     expect(await within(widget()).findByText('Aucun tram T1 direction Part-Dieu atteignable avec 15 min de trajet.')).toBeInTheDocument();
   });
@@ -261,7 +261,7 @@ describe('appels à l’API', () => {
     render(<App api={api} />);
     await chooseLine('T1');
     await chooseStop('Arrêt B');
-    const countdown = await within(widget()).findByText(/\d+:\d{2} minutes/);
+    const countdown = await within(widget()).findByText(/\d+:\d{2} min\./);
     vi.spyOn(api, 'getLinePassages').mockRejectedValue(new Error('429 Trop de requêtes'));
     setPageHidden(true);
     setPageHidden(false);
@@ -293,7 +293,7 @@ it('sélectionne l’arrêt le plus proche de la position', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
   expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
   expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
-  expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
+  expect(await within(widget()).findByText(/\d+:\d{2} min\./)).toBeInTheDocument();
 });
 
 describe('au chargement', () => {
