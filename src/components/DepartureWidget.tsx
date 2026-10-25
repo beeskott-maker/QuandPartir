@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { formatCountdown, formatTime, nextPassage } from '../lib/countdown';
 import { lineLabel } from '../lib/lines';
 import type { Passage } from '../lib/types';
@@ -32,9 +32,17 @@ export function DepartureWidget({ line, direction, hasStop, passages, walkMinute
   const next = nextPassage(passages, now, walkMs);
 
   const service = direction ? `${lineLabel(line)} direction ${direction}` : lineLabel(line);
-  let detail: string;
-  if (next) detail = `Prochain ${lineLabel(next.line)} direction ${next.direction} à ${formatTime(next.departure)}`;
-  else if (!line) detail = 'Choisis une ligne ci-dessous.';
+  let detail: ReactNode;
+  if (next) {
+    // Retour à la ligne entre la ligne et la direction ; l'espace garde un texte lisible d'un bloc.
+    detail = (
+      <>
+        Prochain {lineLabel(next.line)}{' '}
+        <br />
+        direction {next.direction} à {formatTime(next.departure)}
+      </>
+    );
+  } else if (!line) detail = 'Choisis une ligne ci-dessous.';
   else if (!hasStop) detail = `Choisis un arrêt du ${lineLabel(line)} ci-dessous.`;
   else if (passages.length && walkMinutes) detail = `Aucun ${service} atteignable avec ${walkMinutes} min de trajet.`;
   else detail = `Aucun ${service} annoncé à cet arrêt.`;

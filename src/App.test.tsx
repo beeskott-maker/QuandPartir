@@ -164,6 +164,8 @@ describe('temps de trajet', () => {
     render(<App api={api} />);
     expect(await within(widget()).findByText('3:10 minutes')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:03:10');
+    // « Prochain tram T1 » sur une ligne, la direction sur la suivante.
+    expect(widget().querySelector('.widget-detail br')).not.toBeNull();
   });
 
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
