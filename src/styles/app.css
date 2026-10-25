@@ -74,3 +74,20 @@ body {
 .with-action {
   margin-right: -56px;
 }
+
+/* Libellé au-dessus d'un bouton icône, à la hauteur des libellés des menus Gestalt (23 px). */
+.labeled-icon-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Largeur du bouton : un libellé plus long déborde de part et d'autre sans
+     rétrécir le menu voisin. */
+  width: 48px;
+}
+
+.labeled-icon-button-label {
+  display: flex;
+  align-items: flex-start;
+  height: 23px;
+  white-space: nowrap;
+}

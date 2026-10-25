@@ -1,6 +1,7 @@
-import { Badge, BannerSlim, Flex, IconButton, SelectList, Text } from 'gestalt';
+import { Badge, BannerSlim, Flex, SelectList, Text } from 'gestalt';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
+import { LabeledIconButton } from './components/LabeledIconButton';
 import { MinuteStepper } from './components/MinuteStepper';
 import { otherDirection } from './lib/directions';
 import { currentPosition, formatDistance, nearestStop } from './lib/geo';
@@ -230,9 +231,9 @@ export function App({ api }: { api: PassagesApi }) {
                       ))}
                     </SelectList>
                   </Flex.Item>
-                  <IconButton
+                  <LabeledIconButton
+                    label="Inverser"
                     accessibilityLabel="Basculer sur l’autre direction"
-                    tooltip={{ text: 'Autre direction' }}
                     dangerouslySetSvgPath={{ __path: SWAP_ARROWS_PATH }}
                     bgColor="red"
                     iconColor="white"
@@ -270,9 +271,9 @@ export function App({ api }: { api: PassagesApi }) {
                       </SelectList>
                     </Flex.Item>
                     {canLocate && (
-                      <IconButton
+                      <LabeledIconButton
+                        label="Me localiser"
                         accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
-                        tooltip={{ text: 'Arrêt le plus proche' }}
                         icon="location"
                         bgColor="red"
                         iconColor="white"
