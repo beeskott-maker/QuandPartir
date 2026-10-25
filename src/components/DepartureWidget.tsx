@@ -18,6 +18,9 @@ const MODE_ICON_PATHS: Record<LineMode, string> = {
   funiculaire: METRO_ICON_PATH,
 };
 
+/** Temps de fermer chez soi et de descendre : compté dans le compte à rebours, jamais affiché. */
+const LEAVE_HOME_MS = 2 * 60_000;
+
 /** « 11h23 » */
 function formatHour(date: Date): string {
   return `${date.getHours()}h${String(date.getMinutes()).padStart(2, '0')}`;
@@ -54,7 +57,8 @@ interface Props {
 /** Compte à rebours avant de partir pour attraper le prochain passage à l'arrêt choisi. */
 export function DepartureWidget({ line, direction, hasStop, stopName, passages, walkMinutes }: Props) {
   const now = useNow();
-  const walkMs = walkMinutes * 60_000;
+  // Avance nécessaire avant le passage : la marche, plus le temps de quitter chez soi.
+  const walkMs = walkMinutes * 60_000 + LEAVE_HOME_MS;
   const next = nextPassage(passages, now, walkMs);
 
   const service = direction ? `${lineLabel(line)} direction ${direction}` : lineLabel(line);
@@ -82,6 +86,7 @@ export function DepartureWidget({ line, direction, hasStop, stopName, passages, 
   } else if (!line) detail = 'Choisis une ligne ci-dessous.';
   else if (!hasStop) detail = `Choisis un arrêt du ${lineLabel(line)} ci-dessous.`;
   else if (passages.length && walkMinutes) detail = `Aucun ${service} atteignable avec ${walkMinutes} min de trajet.`;
+  else if (passages.length) detail = `Aucun ${service} atteignable à temps.`;
   else detail = `Aucun ${service} annoncé à cet arrêt.`;
 
   return (

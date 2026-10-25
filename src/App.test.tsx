@@ -283,10 +283,11 @@ describe('temps de trajet', () => {
     vi.useRealTimers();
   });
 
-  it('compte à rebours jusqu’au passage quand on est déjà à l’arrêt', async () => {
+  it('compte à rebours jusqu’au passage quand on est déjà à l’arrêt, moins 2 min pour quitter chez soi', async () => {
     render(<App api={api} />);
     await openSettings();
-    expect(await within(widget()).findByText('3:10 min')).toBeInTheDocument();
+    // Passage à 13:03:10, il est 13:00 : 3 min 10, moins les 2 min (invisibles) pour quitter chez soi.
+    expect(await within(widget()).findByText('1:10 min')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('T1 arrêt Bellecour à 13h03');
     // La direction, choisie dans les réglages, n'est pas répétée dans le widget.
     expect(widget()).not.toHaveTextContent('Part-Dieu');
@@ -297,15 +298,15 @@ describe('temps de trajet', () => {
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
     render(<App api={api} />);
     await openSettings();
-    await within(widget()).findByText('3:10 min');
-    clickWalk('plus', 2);
-    expect(walk()).toHaveTextContent('2 min');
-    expect(await within(widget()).findByText('1:10 min')).toBeInTheDocument();
-    // Le temps de marche s'affiche sous le compte à rebours.
-    expect(widget()).toHaveTextContent('2 min à pied → T1 arrêt Bellecour à 13h03');
-    clickWalk('plus', 3);
-    // Le tram de 13:03 est manqué : le suivant vers Part-Dieu passe à 13:12.
-    expect(await within(widget()).findByText('7:00 min')).toBeInTheDocument();
+    await within(widget()).findByText('1:10 min');
+    clickWalk('plus', 1);
+    expect(walk()).toHaveTextContent('1 min');
+    expect(await within(widget()).findByText('0:10 min')).toBeInTheDocument();
+    // Le temps de marche s'affiche sous le compte à rebours, sans les 2 min pour quitter chez soi.
+    expect(widget()).toHaveTextContent('1 min à pied → T1 arrêt Bellecour à 13h03');
+    clickWalk('plus', 4);
+    // Le tram de 13:03 est manqué : le suivant vers Part-Dieu passe à 13:12, moins 5 + 2 min.
+    expect(await within(widget()).findByText('5:00 min')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('5 min à pied → T1 arrêt Bellecour à 13h12');
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
   });
@@ -313,10 +314,10 @@ describe('temps de trajet', () => {
   it('ne compte que les trams de la direction choisie', async () => {
     render(<App api={api} />);
     await openSettings();
-    await within(widget()).findByText('3:10 min');
+    await within(widget()).findByText('1:10 min');
     await screen.findByRole('option', { name: 'IUT Feyssine' });
     fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'IUT Feyssine' } });
-    expect(await within(widget()).findByText('10:00 min')).toBeInTheDocument();
+    expect(await within(widget()).findByText('8:00 min')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('T1 arrêt Bellecour à 13h10');
     expect(localStorage.getItem('quandpartir.direction')).toBe('IUT Feyssine');
   });
@@ -333,7 +334,7 @@ describe('temps de trajet', () => {
   it('signale qu’aucun tram n’est atteignable', async () => {
     render(<App api={api} />);
     await openSettings();
-    await within(widget()).findByText('3:10 min');
+    await within(widget()).findByText('1:10 min');
     clickWalk('plus', 15);
     expect(await within(widget()).findByText('Aucun tram T1 direction Part-Dieu atteignable avec 15 min de trajet.')).toBeInTheDocument();
   });
