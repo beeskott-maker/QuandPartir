@@ -142,9 +142,11 @@ describe('trajet à pied', () => {
   it('signale une réponse de l’IGN inutilisable', async () => {
     fetchMock
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'x' }), { status: 200 }))
-      .mockResolvedValueOnce(new Response('', { status: 500 }));
+      .mockResolvedValueOnce(new Response('', { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Not found' }), { status: 404 }));
     const response = await route('start=4.832,45.7578&end=4.8357,45.7606');
     expect(response.status).toBe(502);
-    expect((await response.json()).error).toBe('Erreur 500 du calcul d’itinéraire IGN (bdtopo-pgr)');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect((await response.json()).error).toBe('Erreur 404 du calcul d’itinéraire IGN (bdtopo-osrm)');
   });
 });

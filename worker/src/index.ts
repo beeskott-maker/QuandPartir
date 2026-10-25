@@ -29,8 +29,11 @@ const MAX_FEATURES = 5000;
 /** Calcul d'itinéraire de la Géoplateforme IGN : public, gratuit, sans clé. */
 const IGN_ROUTE_URL = 'https://data.geopf.fr/navigation/itineraire';
 const ROUTE_PATH = '/itineraire';
-/** Graphes nationaux de l'IGN avec un profil piéton (voir /navigation/getcapabilities), essayés dans l'ordre. */
-const IGN_RESOURCES = ['bdtopo-valhalla', 'bdtopo-pgr'];
+/**
+ * Graphes nationaux de l'IGN avec un profil piéton, essayés dans l'ordre : ceux
+ * annoncés par /navigation/getcapabilities, puis bdtopo-osrm, conseillé par la doc.
+ */
+const IGN_RESOURCES = ['bdtopo-valhalla', 'bdtopo-pgr', 'bdtopo-osrm'];
 /** « lon,lat » en degrés décimaux. */
 const POINT_PATTERN = /^(-?\d{1,3}(?:\.\d+)?),(-?\d{1,2}(?:\.\d+)?)$/;
 /** Au-delà, ce n'est plus un trajet à pied jusqu'à un arrêt. */
