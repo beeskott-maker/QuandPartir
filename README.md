@@ -34,7 +34,7 @@ son adresse se donne au front avec `VITE_TCL_API_URL`.
 
 Chaque push sur `main` lance la CI (`.github/workflows/deploy.yml`) : lint, types,
 tests, build, puis publication sur GitHub Pages à
-https://beeskott-maker.github.io/quandpartir/.
+https://beeskott-maker.github.io/QuandPartir/.
 
 Sans relais déployé, la version publiée tourne en mode démo. Une fois un relais
 disponible, renseigner son adresse dans la variable de dépôt `VITE_TCL_API_URL`
