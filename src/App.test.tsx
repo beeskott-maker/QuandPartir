@@ -48,10 +48,10 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   expect(await within(widget()).findByText('Choisis une ligne ci-dessous.')).toBeInTheDocument();
 
   await chooseLine('T2');
-  expect(widget()).toHaveTextContent('Choisis un arrêt du T2 ci-dessous.');
+  expect(widget()).toHaveTextContent('Choisis un arrêt du tram T2 ci-dessous.');
   await chooseStop('Arrêt B');
   expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
-  expect(widget()).toHaveTextContent(/Prochain T2 direction Direction . à \d{2}:\d{2}:\d{2}/);
+  expect(widget()).toHaveTextContent(/Prochain tram T2 direction Direction . à \d{2}:\d{2}:\d{2}/);
   expect(getPassages).toHaveBeenCalledWith(['3', '4'], 'T2');
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
@@ -63,7 +63,11 @@ it('propose toutes les lignes : métro, puis tram, puis bus', async () => {
   expect(groups.map((g) => g.getAttribute('label'))).toEqual(['Métro et funiculaire', 'Tram', 'Bus']);
   expect(within(groups[1]).getAllByRole('option').map((o) => o.textContent)).toEqual(['T1', 'T2']);
   await chooseLine('C3');
-  expect(widget()).toHaveTextContent('Choisis un arrêt du C3 ci-dessous.');
+  expect(widget()).toHaveTextContent('Choisis un arrêt du bus C3 ci-dessous.');
+  await chooseLine('A');
+  expect(widget()).toHaveTextContent('Choisis un arrêt du métro A ci-dessous.');
+  await chooseStop('Arrêt A');
+  expect(await within(widget()).findByText(/^Prochain métro A direction Direction . à/)).toBeInTheDocument();
 });
 
 it('retient la ligne, l’arrêt et le temps de trajet', async () => {
@@ -112,7 +116,7 @@ it('redemande la direction et l’arrêt quand la ligne change', async () => {
   await chooseStop('Arrêt A');
   await chooseLine('T2');
   expect(screen.getByLabelText('Direction')).toHaveValue('');
-  expect(await within(widget()).findByText('Choisis un arrêt du T2 ci-dessous.')).toBeInTheDocument();
+  expect(await within(widget()).findByText('Choisis un arrêt du tram T2 ci-dessous.')).toBeInTheDocument();
   expect(localStorage.getItem('quandpartir.direction')).toBe('');
   expect(localStorage.getItem('quandpartir.arret')).toBe('');
 });
@@ -149,7 +153,7 @@ describe('temps de trajet', () => {
   it('compte à rebours jusqu’au passage quand on est déjà à l’arrêt', async () => {
     render(<App api={api} />);
     expect(await within(widget()).findByText('3:10 minutes')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain T1 direction Part-Dieu à 13:03:10');
+    expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:03:10');
   });
 
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
@@ -160,7 +164,7 @@ describe('temps de trajet', () => {
     expect(await within(widget()).findByText('1:10 minutes')).toBeInTheDocument();
     clickWalk('plus', 3);
     expect(await within(widget()).findByText('5:00 minutes')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain T1 direction IUT Feyssine à 13:10:00');
+    expect(widget()).toHaveTextContent('Prochain tram T1 direction IUT Feyssine à 13:10:00');
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
   });
 
@@ -170,7 +174,7 @@ describe('temps de trajet', () => {
     await screen.findByRole('option', { name: 'IUT Feyssine' });
     fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'IUT Feyssine' } });
     expect(await within(widget()).findByText('10:00 minutes')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain T1 direction IUT Feyssine à 13:10:00');
+    expect(widget()).toHaveTextContent('Prochain tram T1 direction IUT Feyssine à 13:10:00');
     expect(localStorage.getItem('quandpartir.direction')).toBe('IUT Feyssine');
   });
 
@@ -179,14 +183,14 @@ describe('temps de trajet', () => {
     render(<App api={api} />);
     // La direction retenue reste proposée même si aucun passage ne l’annonce.
     expect(screen.getByLabelText('Direction')).toHaveValue('Debourg');
-    expect(await within(widget()).findByText('Aucun T1 direction Debourg annoncé à cet arrêt.')).toBeInTheDocument();
+    expect(await within(widget()).findByText('Aucun tram T1 direction Debourg annoncé à cet arrêt.')).toBeInTheDocument();
   });
 
   it('signale qu’aucun tram n’est atteignable', async () => {
     render(<App api={api} />);
     await within(widget()).findByText('3:10 minutes');
     clickWalk('plus', 15);
-    expect(await within(widget()).findByText('Aucun T1 atteignable avec 15 min de trajet.')).toBeInTheDocument();
+    expect(await within(widget()).findByText('Aucun tram T1 atteignable avec 15 min de trajet.')).toBeInTheDocument();
   });
 });
 

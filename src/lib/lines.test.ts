@@ -1,4 +1,4 @@
-import { groupLines } from './lines';
+import { groupLines, lineLabel } from './lines';
 
 it('range le métro, puis le tram, puis le bus', () => {
   const groups = groupLines(['86', 'T10', 'C3', 'B', 'F1', 'T2', 'A', 'JD550', '9', 'T1', 'D', 'F2', 'C', 'C25']);
@@ -11,4 +11,12 @@ it('range le métro, puis le tram, puis le bus', () => {
 
 it('omet les groupes vides', () => {
   expect(groupLines(['T1'])).toEqual([{ label: 'Tram', lines: ['T1'] }]);
+});
+
+it('nomme la ligne avec son mode', () => {
+  expect(lineLabel('D')).toBe('métro D');
+  expect(lineLabel('F1')).toBe('funiculaire F1');
+  expect(lineLabel('T1')).toBe('tram T1');
+  expect(lineLabel('C3')).toBe('bus C3');
+  expect(lineLabel('86')).toBe('bus 86');
 });

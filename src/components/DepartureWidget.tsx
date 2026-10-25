@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatCountdown, formatTime, nextPassage } from '../lib/countdown';
+import { lineLabel } from '../lib/lines';
 import type { Passage } from '../lib/types';
 
 /** Heure courante, rafraîchie chaque seconde pour le compte à rebours. */
@@ -30,11 +31,11 @@ export function DepartureWidget({ line, direction, hasStop, passages, walkMinute
   const walkMs = walkMinutes * 60_000;
   const next = nextPassage(passages, now, walkMs);
 
-  const service = direction ? `${line} direction ${direction}` : line;
+  const service = direction ? `${lineLabel(line)} direction ${direction}` : lineLabel(line);
   let detail: string;
-  if (next) detail = `Prochain ${next.line} direction ${next.direction} à ${formatTime(next.departure)}`;
+  if (next) detail = `Prochain ${lineLabel(next.line)} direction ${next.direction} à ${formatTime(next.departure)}`;
   else if (!line) detail = 'Choisis une ligne ci-dessous.';
-  else if (!hasStop) detail = `Choisis un arrêt du ${line} ci-dessous.`;
+  else if (!hasStop) detail = `Choisis un arrêt du ${lineLabel(line)} ci-dessous.`;
   else if (passages.length && walkMinutes) detail = `Aucun ${service} atteignable avec ${walkMinutes} min de trajet.`;
   else detail = `Aucun ${service} annoncé à cet arrêt.`;
 
