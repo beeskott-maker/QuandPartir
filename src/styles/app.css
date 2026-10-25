@@ -56,6 +56,11 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Contenu de la section « Réglages » : 8 px d'air en plus avant le bas du cadre. */
+.settings {
+  padding-bottom: 8px;
+}
+
 /* Section « Réglages » (accordéon Gestalt) : deux groupes séparés par un filet,
    ligne et direction, puis arrêt et temps de trajet. */
 .settings-group + .settings-group {
