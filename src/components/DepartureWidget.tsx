@@ -37,9 +37,9 @@ export function DepartureWidget({ line, direction, hasStop, passages, walkMinute
     // Retour à la ligne entre la ligne et la direction ; l'espace garde un texte lisible d'un bloc.
     detail = (
       <>
-        Prochain {lineLabel(next.line)}{' '}
+        Prochain {lineLabel(next.line)} direction{' '}
         <br />
-        direction {next.direction} à {formatTime(next.departure)}
+        {next.direction} à {formatTime(next.departure)}
       </>
     );
   } else if (!line) detail = 'Choisis une ligne ci-dessous.';
