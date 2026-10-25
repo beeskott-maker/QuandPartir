@@ -54,13 +54,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Cartes regroupant les réglages (ligne et direction ; arrêt et temps de trajet),
-   dans le style du widget. */
+/* Cartes regroupant les réglages (ligne et direction ; arrêt et temps de trajet) :
+   simple contour, sans fond, avec les coins arrondis du widget. */
 .card {
   padding: 20px;
+  border: 1px solid #d0d0d0;
   border-radius: 28px;
-  background: #fff;
-  box-shadow: 0 2px 16px rgb(0 0 0 / 8%);
 }
 
 /* Dans une carte, les champs prennent la moitié de la largeur de la page sans
