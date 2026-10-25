@@ -66,6 +66,71 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
 
+describe('changement de ligne (T1 puis T4)', () => {
+  const at = (line: string, stopId: string, direction: string, minutes: number): Passage => ({
+    stopId,
+    line,
+    direction,
+    departure: new Date(Date.now() + minutes * 60_000),
+    delayLabel: '',
+    realtime: true,
+    course: `${line}-${direction}`,
+  });
+  const api: PassagesApi = {
+    demo: false,
+    getLines: async () => ['T1', 'T4'],
+    getStops: async (line) =>
+      line === 'T1'
+        ? [
+            { name: 'Bellecour', ids: ['1'], lat: 45.7578, lon: 4.832 },
+            { name: 'Perrache', ids: ['2'], lat: 45.7485, lon: 4.8255 },
+          ]
+        : [
+            { name: 'Jet d’Eau', ids: ['7'], lat: 45.739, lon: 4.86 },
+            { name: 'La Doua', ids: ['8'], lat: 45.78, lon: 4.87 },
+          ],
+    getLinePassages: async (line) =>
+      line === 'T1'
+        ? [at('T1', '1', 'Debourg', 3), at('T1', '2', 'IUT Feyssine', 4)]
+        : [at('T4', '7', 'Hôpital Feyzin', 3), at('T4', '8', 'La Doua', 5)],
+  };
+
+  beforeEach(() => {
+    localStorage.setItem('quandpartir.ligne', 'T1');
+    localStorage.setItem('quandpartir.direction', 'IUT Feyssine');
+    localStorage.setItem('quandpartir.arret', 'Bellecour');
+  });
+
+  it('remet la direction (première de T4) et l’arrêt à zéro', async () => {
+    render(<App api={api} />);
+    await openSettings();
+    await chooseLine('T4');
+    await waitFor(() => expect(screen.getByLabelText('Direction')).toHaveValue('Hôpital Feyzin'));
+    expect(within(screen.getByLabelText('Direction')).queryByText('IUT Feyssine')).not.toBeInTheDocument();
+    expect(within(screen.getByLabelText('Direction')).queryByText('Debourg')).not.toBeInTheDocument();
+    expect(await within(widget()).findByText('Choisis un arrêt du tram T4 ci-dessous.')).toBeInTheDocument();
+    expect(localStorage.getItem('quandpartir.direction')).toBe('Hôpital Feyzin');
+    expect(localStorage.getItem('quandpartir.arret')).toBe('');
+  });
+
+  it('ignore une géolocalisation lente arrivée après le changement de ligne', async () => {
+    let answer: PositionCallback | undefined;
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      answer = success;
+    });
+    Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+    render(<App api={api} />);
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalled());
+    await openSettings();
+    await chooseLine('T4');
+    // La position (à Bellecour, sur la T1) arrive après coup.
+    answer!({ coords: { latitude: 45.7578, longitude: 4.832 } } as GeolocationPosition);
+    expect(await within(widget()).findByText('Choisis un arrêt du tram T4 ci-dessous.')).toBeInTheDocument();
+    expect(localStorage.getItem('quandpartir.arret')).toBe('');
+    expect(screen.queryByText(/Arrêt le plus proche de toi/)).not.toBeInTheDocument();
+  });
+});
+
 describe('section Réglages', () => {
   it('est repliée, avec son seul titre, quand tout est réglé', async () => {
     localStorage.setItem('quandpartir.ligne', 'T1');

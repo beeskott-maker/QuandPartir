@@ -12,6 +12,8 @@ import type { Passage, PassagesApi, Stop } from './lib/types';
 
 const REFRESH_MS = 30_000;
 const MAX_WALK_MINUTES = 30;
+const NO_PASSAGES: Passage[] = [];
+const NO_STOPS: Stop[] = [];
 /** Icône ⇄ (flèche vers la droite au-dessus, vers la gauche dessous), grille 24 × 24 de Gestalt. */
 const SWAP_ARROWS_PATH = 'M2 6h14V3l5 4-5 4V8H2zM22 18H8v3l-5-4 5-4v3h14z';
 
@@ -27,7 +29,9 @@ function readWalkMinutes(): number {
 export function App({ api }: { api: PassagesApi }) {
   const [lines, setLines] = useState<string[]>([]);
   const [line, setLine] = useState(() => readPreference('ligne'));
-  const [linePassages, setLinePassages] = useState<Passage[]>([]);
+  // Passages de la ligne, avec la ligne à laquelle ils appartiennent : juste après un
+  // changement de ligne, ceux de l'ancienne ne doivent servir à rien.
+  const [lineData, setLineData] = useState<{ line: string; passages: Passage[] }>({ line: '', passages: [] });
   const [direction, setDirection] = useState(() => readPreference('direction'));
   const [stops, setStops] = useState<Stop[]>([]);
   // Ligne dont les arrêts sont chargés : tant qu'ils ne le sont pas, rien ne « manque ».
@@ -74,14 +78,13 @@ export function App({ api }: { api: PassagesApi }) {
   // l'arrêt, les directions et l'ordre des arrêts. Rien n'est demandé tant que la
   // page est masquée (onglet en arrière-plan, téléphone verrouillé).
   useEffect(() => {
-    setLinePassages([]);
     if (!lineChosen) return;
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | undefined;
     const load = async () => {
       try {
         const result = await api.getLinePassages(lineChosen);
-        if (!cancelled) setLinePassages(result);
+        if (!cancelled) setLineData({ line: lineChosen, passages: result });
       } catch {
         // Appel refusé ou limite atteinte : on garde les derniers passages, sans
         // message ; le compte à rebours continue sur leurs heures de passage.
@@ -106,12 +109,15 @@ export function App({ api }: { api: PassagesApi }) {
     };
   }, [api, lineChosen]);
 
+  const linePassages = lineData.line === lineChosen ? lineData.passages : NO_PASSAGES;
+  const lineStops = stopsLine === lineChosen ? stops : NO_STOPS;
+
   // Directions (terminus) annoncées sur la ligne, et arrêts dans l'ordre du parcours.
   const directions = useMemo(
     () => [...new Set(linePassages.map((p) => p.direction).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr')),
     [linePassages],
   );
-  const orderedStops = useMemo(() => orderStops(stops, linePassages, direction), [stops, linePassages, direction]);
+  const orderedStops = useMemo(() => orderStops(lineStops, linePassages, direction), [lineStops, linePassages, direction]);
 
   // Une direction retenue reste proposée même si aucun passage ne l'annonce en ce moment.
   const directionOptions = direction && !directions.includes(direction) ? [direction, ...directions] : directions;
@@ -121,7 +127,7 @@ export function App({ api }: { api: PassagesApi }) {
     if (lineChosen && !direction && directions.length) chooseDirection(directions[0]);
   }, [lineChosen, direction, directions]);
 
-  const stop = stops.find((s) => s.name === stopName);
+  const stop = lineStops.find((s) => s.name === stopName);
 
   // Réglages incomplets (une fois les données chargées) : ligne ou arrêt à choisir.
   const settingsMissing = lines.length > 0 && (!lineChosen || (stopsLine === lineChosen && !stop));
@@ -163,16 +169,27 @@ export function App({ api }: { api: PassagesApi }) {
     savePreference('trajet', String(minutes));
   };
 
-  const canLocate = stops.some((s) => s.lat != null && s.lon != null);
+  const canLocate = lineStops.some((s) => s.lat != null && s.lon != null);
+
+  // Ligne affichée, lue après une attente (la géolocalisation peut prendre plusieurs secondes).
+  const currentLine = useRef(lineChosen);
+  useEffect(() => {
+    currentLine.current = lineChosen;
+  }, [lineChosen]);
 
   /**
    * Sélectionne l'arrêt le plus proche. Lancée automatiquement au chargement,
    * un échec (localisation refusée…) est silencieux : l'arrêt retenu reste choisi.
+   * Si la ligne a changé entre-temps, la position reçue est ignorée.
    */
   const chooseNearest = async ({ auto = false } = {}) => {
+    const line = lineChosen;
+    const candidates = lineStops;
     setLocating(true);
     try {
-      const found = nearestStop(stops, await currentPosition());
+      const position = await currentPosition();
+      if (currentLine.current !== line) return;
+      const found = nearestStop(candidates, position);
       if (found) {
         chooseStop(found.stop.name);
         setNearby({ name: found.stop.name, distance: found.distance });
@@ -296,11 +313,11 @@ export function App({ api }: { api: PassagesApi }) {
                                   label="Arrêt"
                                   size="lg"
                                   placeholder={
-                                    !lineChosen ? 'Choisir d’abord une ligne' : stops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
+                                    !lineChosen ? 'Choisir d’abord une ligne' : lineStops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
                                   }
                                   value={stop ? stopName : null}
                                   onChange={({ value }) => chooseStop(value)}
-                                  disabled={!stops.length}
+                                  disabled={!lineStops.length}
                                 >
                                   {orderedStops.map((s) => (
                                     <SelectList.Option key={s.name} label={s.name} value={s.name} />
