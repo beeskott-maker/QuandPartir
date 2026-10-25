@@ -25,6 +25,12 @@ async function chooseStop(name: string) {
 }
 
 const widget = () => screen.getByRole('region', { name: 'Prochain départ' });
+const walk = () => screen.getByRole('group', { name: 'Temps pour rejoindre l’arrêt' });
+
+function clickWalk(button: 'plus' | 'moins', times = 1) {
+  const name = button === 'plus' ? 'Une minute de plus' : 'Une minute de moins';
+  for (let i = 0; i < times; i++) fireEvent.click(within(walk()).getByRole('button', { name }));
+}
 
 afterEach(() => {
   localStorage.clear();
@@ -58,7 +64,7 @@ it('retient la ligne, l’arrêt et le temps de trajet', async () => {
   render(<App api={api} />);
   expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
   expect(getPassages).toHaveBeenCalledWith(['5', '6'], 'T1');
-  expect(screen.getByLabelText('Temps pour rejoindre l’arrêt')).toHaveValue('4');
+  expect(walk()).toHaveTextContent('4 min');
 });
 
 it('redemande l’arrêt quand la ligne change', async () => {
@@ -107,9 +113,10 @@ describe('temps de trajet', () => {
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
     render(<App api={api} />);
     await within(widget()).findByText('3:10 minutes');
-    fireEvent.change(screen.getByLabelText('Temps pour rejoindre l’arrêt'), { target: { value: '2' } });
+    clickWalk('plus', 2);
+    expect(walk()).toHaveTextContent('2 min');
     expect(await within(widget()).findByText('1:10 minutes')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Temps pour rejoindre l’arrêt'), { target: { value: '5' } });
+    clickWalk('plus', 3);
     expect(await within(widget()).findByText('5:00 minutes')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('Prochain T1 direction IUT Feyssine à 13:10');
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
@@ -118,9 +125,22 @@ describe('temps de trajet', () => {
   it('signale qu’aucun tram n’est atteignable', async () => {
     render(<App api={api} />);
     await within(widget()).findByText('3:10 minutes');
-    fireEvent.change(screen.getByLabelText('Temps pour rejoindre l’arrêt'), { target: { value: '15' } });
+    clickWalk('plus', 15);
     expect(await within(widget()).findByText('Aucun T1 atteignable avec 15 min de trajet.')).toBeInTheDocument();
   });
+});
+
+it('borne le temps de trajet entre 0 et 30 minutes', async () => {
+  render(<App api={createDemoApi()} />);
+  const minus = within(walk()).getByRole('button', { name: 'Une minute de moins' });
+  const plus = within(walk()).getByRole('button', { name: 'Une minute de plus' });
+  expect(walk()).toHaveTextContent('0 min');
+  expect(minus).toBeDisabled();
+  clickWalk('plus', 30);
+  expect(walk()).toHaveTextContent('30 min');
+  expect(plus).toBeDisabled();
+  clickWalk('moins');
+  expect(walk()).toHaveTextContent('29 min');
 });
 
 it('affiche l’erreur de l’API', async () => {

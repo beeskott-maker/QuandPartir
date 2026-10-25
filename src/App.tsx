@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
+import { MinuteStepper } from './components/MinuteStepper';
 import { currentPosition, formatDistance, nearestStop } from './lib/geo';
 import { readPreference, savePreference } from './lib/preferences';
 import type { Passage, PassagesApi, Stop } from './lib/types';
 
 const REFRESH_MS = 30_000;
-const WALK_OPTIONS = Array.from({ length: 31 }, (_, minutes) => minutes);
+const MAX_WALK_MINUTES = 30;
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -13,7 +14,7 @@ function message(e: unknown): string {
 
 function readWalkMinutes(): number {
   const minutes = Number(readPreference('trajet'));
-  return WALK_OPTIONS.includes(minutes) ? minutes : 0;
+  return Number.isInteger(minutes) && minutes >= 0 && minutes <= MAX_WALK_MINUTES ? minutes : 0;
 }
 
 export function App({ api }: { api: PassagesApi }) {
@@ -166,14 +167,8 @@ export function App({ api }: { api: PassagesApi }) {
           </p>
         )}
 
-        <label htmlFor="walk">Temps pour rejoindre l’arrêt</label>
-        <select id="walk" value={walkMinutes} onChange={(e) => chooseWalk(Number(e.target.value))}>
-          {WALK_OPTIONS.map((minutes) => (
-            <option key={minutes} value={minutes}>
-              {minutes === 0 ? 'Aucun (déjà à l’arrêt)' : `${minutes} min`}
-            </option>
-          ))}
-        </select>
+        <span id="walk-label">Temps pour rejoindre l’arrêt</span>
+        <MinuteStepper labelId="walk-label" value={walkMinutes} min={0} max={MAX_WALK_MINUTES} onChange={chooseWalk} />
       </div>
       {error && <p role="alert">{error}</p>}
     </main>
