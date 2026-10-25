@@ -6,6 +6,11 @@ const DEMO_STOPS: Stop[] = [
   { name: 'Arrêt B', ids: ['3', '4'], lat: 45.7485, lon: 4.8255 },
   { name: 'Arrêt C', ids: ['5', '6'], lat: 45.7606, lon: 4.8594 },
 ];
+// Parcours fictif : Arrêt B -> Arrêt C -> Arrêt A vers « Direction A », l'inverse vers « Direction B ».
+const DEMO_ROUTES = [
+  { direction: DEMO_DIRECTIONS[0], ids: ['3', '5', '1'] },
+  { direction: DEMO_DIRECTIONS[1], ids: ['2', '6', '4'] },
+];
 
 /** Passages fictifs, recalculés à chaque appel pour rester « à venir ». */
 export function createDemoApi(now: () => Date = () => new Date()): PassagesApi {
@@ -15,45 +20,29 @@ export function createDemoApi(now: () => Date = () => new Date()): PassagesApi {
       return ['T1', 'C3', 'A', 'T2'];
     },
     async getLinePassages(line) {
-      // Parcours fictif : Arrêt B -> Arrêt C -> Arrêt A vers « Direction A », l'inverse vers « Direction B ».
-      const start = now().getTime();
-      const route = [
-        { direction: DEMO_DIRECTIONS[0], ids: ['3', '5', '1'] },
-        { direction: DEMO_DIRECTIONS[1], ids: ['2', '6', '4'] },
-      ];
-      return route.flatMap(({ direction, ids }, r) =>
-        ids.map((stopId, i) => ({
-          stopId,
-          line,
-          direction,
-          departure: new Date(start + (2 + r + i * 2) * 60_000),
-          delayLabel: '',
-          realtime: true,
-          course: `demo-${r}`,
-        })),
-      );
-    },
-    async getStops() {
-      return DEMO_STOPS;
-    },
-    async getPassages(stopIds, line) {
-      const stopId = stopIds[0];
       const start = now().getTime();
       const passages: Passage[] = [];
-      DEMO_DIRECTIONS.forEach((direction, dirIndex) => {
+      DEMO_ROUTES.forEach(({ direction, ids }, r) => {
+        // Trois courses par sens, toutes les 7 minutes ; 2 minutes entre deux arrêts.
         for (let k = 0; k < 3; k++) {
-          const minutes = 1 + dirIndex * 3 + k * 7;
-          passages.push({
-            stopId,
-            line,
-            direction,
-            departure: new Date(start + minutes * 60_000),
-            delayLabel: minutes <= 1 ? 'Proche' : `${minutes} min`,
-            realtime: k === 0,
+          ids.forEach((stopId, i) => {
+            const minutes = 1 + r * 3 + k * 7 + i * 2;
+            passages.push({
+              stopId,
+              line,
+              direction,
+              departure: new Date(start + minutes * 60_000),
+              delayLabel: minutes <= 1 ? 'Proche' : `${minutes} min`,
+              realtime: k === 0,
+              course: `demo-${r}-${k}`,
+            });
           });
         }
       });
       return passages.sort((a, b) => a.departure.getTime() - b.departure.getTime());
+    },
+    async getStops() {
+      return DEMO_STOPS;
     },
   };
 }

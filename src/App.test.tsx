@@ -39,7 +39,7 @@ afterEach(() => {
 
 it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async () => {
   const api = createDemoApi();
-  const getPassages = vi.spyOn(api, 'getPassages');
+  const getLinePassages = vi.spyOn(api, 'getLinePassages');
   render(<App api={api} />);
   expect(screen.queryByRole('heading', { name: 'QuandPartir' })).not.toBeInTheDocument();
   // Ligne obligatoire : rien n'est choisi d'office et l'arrêt attend la ligne.
@@ -52,7 +52,9 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   await chooseStop('Arrêt B');
   expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
   expect(widget()).toHaveTextContent(/Prochain tram T2 direction Direction . à \d{2}:\d{2}:\d{2}/);
-  expect(getPassages).toHaveBeenCalledWith(['3', '4'], 'T2');
+  // Un seul appel, pour la ligne : l'arrêt est filtré dans l'appli.
+  expect(getLinePassages).toHaveBeenCalledTimes(1);
+  expect(getLinePassages).toHaveBeenCalledWith('T2');
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
 
@@ -74,11 +76,9 @@ it('retient la ligne, l’arrêt et le temps de trajet', async () => {
   localStorage.setItem('quandpartir.ligne', 'T1');
   localStorage.setItem('quandpartir.arret', 'Arrêt C');
   localStorage.setItem('quandpartir.trajet', '4');
-  const api = createDemoApi();
-  const getPassages = vi.spyOn(api, 'getPassages');
-  render(<App api={api} />);
+  render(<App api={createDemoApi()} />);
   expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
-  expect(getPassages).toHaveBeenCalledWith(['5', '6'], 'T1');
+  expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt C');
   expect(walk()).toHaveTextContent('4 min');
 });
 
@@ -147,7 +147,6 @@ describe('temps de trajet', () => {
     getLines: async () => ['T1'],
     getLinePassages: async () => [passage('13:03:10', 'Part-Dieu'), passage('13:10:00', 'IUT Feyssine')],
     getStops: async () => [{ name: 'Bellecour', ids: ['1'] }],
-    getPassages: async () => [passage('13:03:10', 'Part-Dieu'), passage('13:10:00', 'IUT Feyssine')],
   };
 
   beforeEach(() => {
@@ -218,30 +217,74 @@ it('borne le temps de trajet entre 0 et 30 minutes', async () => {
   expect(walk()).toHaveTextContent('29 min');
 });
 
-it('affiche l’erreur de l’API', async () => {
-  const api: PassagesApi = {
-    demo: false,
-    getLines: async () => ['T1'],
-    getLinePassages: async () => [],
-    getStops: async () => [{ name: 'Arrêt A', ids: ['1'] }],
-    getPassages: () => Promise.reject(new Error('Accès refusé')),
-  };
-  render(<App api={api} />);
-  await chooseLine('T1');
-  await chooseStop('Arrêt A');
-  expect(await screen.findByRole('alert')).toHaveTextContent('Accès refusé');
+function setPageHidden(hidden: boolean) {
+  Object.defineProperty(document, 'hidden', { value: hidden, configurable: true });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
+describe('appels à l’API', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'hidden');
+  });
+
+  it('n’appelle plus rien quand la page est masquée, et reprend à son retour', async () => {
+    const api = createDemoApi();
+    const getLinePassages = vi.spyOn(api, 'getLinePassages');
+    render(<App api={api} />);
+    await chooseLine('T1');
+    await waitFor(() => expect(getLinePassages).toHaveBeenCalledTimes(1));
+    vi.useFakeTimers();
+    try {
+      setPageHidden(true);
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(getLinePassages).toHaveBeenCalledTimes(1);
+      setPageHidden(false);
+      expect(getLinePassages).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(getLinePassages).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('garde les derniers passages, sans message, quand un appel échoue', async () => {
+    const api = createDemoApi();
+    render(<App api={api} />);
+    await chooseLine('T1');
+    await chooseStop('Arrêt B');
+    const countdown = await within(widget()).findByText(/\d+:\d{2} minutes/);
+    vi.spyOn(api, 'getLinePassages').mockRejectedValue(new Error('429 Trop de requêtes'));
+    setPageHidden(true);
+    setPageHidden(false);
+    await waitFor(() => expect(api.getLinePassages).toHaveBeenCalled());
+    expect(countdown).toBeInTheDocument();
+    expect(widget()).toHaveTextContent(/Prochain tram T1 direction/);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('n’affiche aucun message si la ligne ne répond pas du tout', async () => {
+    const api: PassagesApi = {
+      demo: false,
+      getLines: async () => ['T1'],
+      getLinePassages: () => Promise.reject(new Error('Accès refusé')),
+      getStops: async () => [{ name: 'Arrêt A', ids: ['1'] }],
+    };
+    render(<App api={api} />);
+    await chooseLine('T1');
+    await chooseStop('Arrêt A');
+    expect(await within(widget()).findByText('Aucun tram T1 annoncé à cet arrêt.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });
 
 it('sélectionne l’arrêt le plus proche de la position', async () => {
   mockPosition({ lat: 45.7486, lon: 4.8256 });
-  const api = createDemoApi();
-  const getPassages = vi.spyOn(api, 'getPassages');
-  render(<App api={api} />);
+  render(<App api={createDemoApi()} />);
   await chooseLine('T1');
   fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
   expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
   expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
-  expect(getPassages).toHaveBeenCalledWith(['3', '4'], 'T1');
+  expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
 });
 
 describe('au chargement', () => {
@@ -254,15 +297,13 @@ describe('au chargement', () => {
 
   it('reprend ligne, direction et temps de trajet, puis géolocalise pour choisir l’arrêt', async () => {
     mockPosition({ lat: 45.7486, lon: 4.8256 });
-    const api = createDemoApi();
-    const getPassages = vi.spyOn(api, 'getPassages');
-    render(<App api={api} />);
+    render(<App api={createDemoApi()} />);
     expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
     expect(screen.getByLabelText('Ligne')).toHaveValue('T1');
     expect(screen.getByLabelText('Direction')).toHaveValue('Direction B');
     expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
     expect(walk()).toHaveTextContent('6 min');
-    expect(getPassages).toHaveBeenLastCalledWith(['3', '4'], 'T1');
+    expect(await within(widget()).findByText(/Prochain tram T1 direction Direction B/)).toBeInTheDocument();
     expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
   });
 

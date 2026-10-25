@@ -29,7 +29,6 @@ export function App({ api }: { api: PassagesApi }) {
   const [stops, setStops] = useState<Stop[]>([]);
   const [stopName, setStopName] = useState(() => readPreference('arret'));
   const [walkMinutes, setWalkMinutes] = useState(readWalkMinutes);
-  const [passages, setPassages] = useState<Passage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [nearby, setNearby] = useState<{ name: string; distance: number } | null>(null);
@@ -61,16 +60,39 @@ export function App({ api }: { api: PassagesApi }) {
     };
   }, [api, lineChosen]);
 
+  // Un seul appel par actualisation : les passages de toute la ligne, dont on tire
+  // l'arrêt, les directions et l'ordre des arrêts. Rien n'est demandé tant que la
+  // page est masquée (onglet en arrière-plan, téléphone verrouillé).
   useEffect(() => {
     setLinePassages([]);
     if (!lineChosen) return;
     let cancelled = false;
-    api.getLinePassages(lineChosen).then(
-      (result) => !cancelled && setLinePassages(result),
-      (e) => !cancelled && setError(message(e)),
-    );
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const load = async () => {
+      try {
+        const result = await api.getLinePassages(lineChosen);
+        if (!cancelled) setLinePassages(result);
+      } catch {
+        // Appel refusé ou limite atteinte : on garde les derniers passages, sans
+        // message ; le compte à rebours continue sur leurs heures de passage.
+      }
+    };
+    const start = () => {
+      if (timer) return;
+      load();
+      timer = setInterval(load, REFRESH_MS);
+    };
+    const pause = () => {
+      clearInterval(timer);
+      timer = undefined;
+    };
+    const onVisibilityChange = () => (document.hidden ? pause() : start());
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       cancelled = true;
+      pause();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [api, lineChosen]);
 
@@ -85,30 +107,15 @@ export function App({ api }: { api: PassagesApi }) {
   const directionOptions = direction && !directions.includes(direction) ? [direction, ...directions] : directions;
 
   const stop = stops.find((s) => s.name === stopName);
-  const shownPassages = direction ? passages.filter((p) => p.direction === direction) : passages;
-
-  useEffect(() => {
-    setPassages([]);
-    if (!stop || !lineChosen) return;
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const result = await api.getPassages(stop.ids, lineChosen);
-        if (!cancelled) {
-          setPassages(result);
-          setError(null);
-        }
-      } catch (e) {
-        if (!cancelled) setError(message(e));
-      }
-    };
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [api, stop, lineChosen]);
+  const shownPassages = useMemo(
+    () =>
+      stop
+        ? linePassages
+            .filter((p) => stop.ids.includes(p.stopId) && (!direction || p.direction === direction))
+            .sort((a, b) => a.departure.getTime() - b.departure.getTime())
+        : [],
+    [linePassages, stop, direction],
+  );
 
   const chooseLine = (value: string) => {
     setLine(value);
@@ -201,64 +208,68 @@ export function App({ api }: { api: PassagesApi }) {
             ))}
           </SelectList>
 
-          <Flex alignItems="end" gap={2}>
-            <Flex.Item flex="grow" minWidth={0}>
-              <SelectList
-                id="direction"
-                label="Direction"
-                size="lg"
-                value={direction}
-                onChange={({ value }) => chooseDirection(value)}
-                disabled={!lineChosen}
-              >
-                <SelectList.Option label={lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'} value="" />
-                {directionOptions.map((d) => (
-                  <SelectList.Option key={d} label={d} value={d} />
-                ))}
-              </SelectList>
-            </Flex.Item>
-            <IconButton
-              accessibilityLabel="Basculer sur l’autre direction"
-              tooltip={{ text: 'Autre direction' }}
-              icon="swap"
-              bgColor="lightGray"
-              size="lg"
-              onClick={() => chooseDirection(otherDirection(directions, direction))}
-              disabled={directions.length < 2}
-            />
-          </Flex>
-
-          <Flex direction="column" gap={2}>
+          <div className="with-action">
             <Flex alignItems="end" gap={2}>
               <Flex.Item flex="grow" minWidth={0}>
                 <SelectList
-                  id="stop"
-                  label="Arrêt"
+                  id="direction"
+                  label="Direction"
                   size="lg"
-                  placeholder={
-                    !lineChosen ? 'Choisir d’abord une ligne' : stops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
-                  }
-                  value={stop ? stopName : null}
-                  onChange={({ value }) => chooseStop(value)}
-                  disabled={!stops.length}
+                  value={direction}
+                  onChange={({ value }) => chooseDirection(value)}
+                  disabled={!lineChosen}
                 >
-                  {orderedStops.map((s) => (
-                    <SelectList.Option key={s.name} label={s.name} value={s.name} />
+                  <SelectList.Option label={lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'} value="" />
+                  {directionOptions.map((d) => (
+                    <SelectList.Option key={d} label={d} value={d} />
                   ))}
                 </SelectList>
               </Flex.Item>
-              {canLocate && (
-                <IconButton
-                  accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
-                  tooltip={{ text: 'Arrêt le plus proche' }}
-                  icon="location"
-                  bgColor="lightGray"
-                  size="lg"
-                  onClick={() => chooseNearest()}
-                  disabled={locating}
-                />
-              )}
+              <IconButton
+                accessibilityLabel="Basculer sur l’autre direction"
+                tooltip={{ text: 'Autre direction' }}
+                icon="swap"
+                bgColor="lightGray"
+                size="lg"
+                onClick={() => chooseDirection(otherDirection(directions, direction))}
+                disabled={directions.length < 2}
+              />
             </Flex>
+          </div>
+
+          <Flex direction="column" gap={2}>
+            <div className="with-action">
+              <Flex alignItems="end" gap={2}>
+                <Flex.Item flex="grow" minWidth={0}>
+                  <SelectList
+                    id="stop"
+                    label="Arrêt"
+                    size="lg"
+                    placeholder={
+                      !lineChosen ? 'Choisir d’abord une ligne' : stops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
+                    }
+                    value={stop ? stopName : null}
+                    onChange={({ value }) => chooseStop(value)}
+                    disabled={!stops.length}
+                  >
+                    {orderedStops.map((s) => (
+                      <SelectList.Option key={s.name} label={s.name} value={s.name} />
+                    ))}
+                  </SelectList>
+                </Flex.Item>
+                {canLocate && (
+                  <IconButton
+                    accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
+                    tooltip={{ text: 'Arrêt le plus proche' }}
+                    icon="location"
+                    bgColor="lightGray"
+                    size="lg"
+                    onClick={() => chooseNearest()}
+                    disabled={locating}
+                  />
+                )}
+              </Flex>
+            </div>
             {nearby && nearby.name === stopName && (
               <Text color="subtle" size="200">
                 Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.

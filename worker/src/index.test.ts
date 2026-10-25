@@ -86,3 +86,16 @@ it('répond au pré-vol CORS', async () => {
   expect(response.status).toBe(204);
   expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5173');
 });
+
+it('limite les appels par adresse IP', async () => {
+  const call = (ip: string) =>
+    worker.fetch(new Request(`${PASSAGES}?ligne=T1`, { headers: { 'CF-Connecting-IP': ip } }), env);
+  for (let i = 0; i < 30; i++) expect((await call('1.2.3.4')).status).toBe(200);
+  const refused = await call('1.2.3.4');
+  expect(refused.status).toBe(429);
+  expect(refused.headers.get('Retry-After')).toBe('60');
+  // Les autres adresses ne sont pas concernées.
+  expect((await call('5.6.7.8')).status).toBe(200);
+  // Grand Lyon n'a été appelé qu'une fois grâce au cache.
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

@@ -54,8 +54,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Champs sur la moitié de la largeur, sans descendre sous une largeur lisible. */
+/* Champs sur la moitié de la largeur, sans descendre sous une largeur lisible.
+   La place de l'icône (48 px + 8 px d'écart) reste disponible à droite. */
 .fields {
   width: 50%;
-  min-width: min(100%, 260px);
+  min-width: min(calc(100% - 56px), 260px);
+}
+
+/* Menu + icône : le menu garde la largeur des autres champs, l'icône déborde à droite. */
+.with-action {
+  margin-right: -56px;
 }

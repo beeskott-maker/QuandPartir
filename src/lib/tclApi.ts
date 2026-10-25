@@ -70,12 +70,8 @@ export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof 
     return stopsFile;
   };
   // Le relais n'interroge Grand Lyon que sur la ligne demandée.
-  const fetchPassages = async (line: string, stopIds?: string[]) => {
+  const fetchPassages = async (line: string) => {
     const params = new URLSearchParams({ ligne: line });
-    if (stopIds) {
-      params.set('field', 'id');
-      params.set('value', stopIds.join(','));
-    }
     const response = await fetchFn(`${root}/${PASSAGES_DATASET}/all.json?${params}`, {
       headers: { Accept: 'application/json' },
     });
@@ -97,9 +93,6 @@ export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof 
     },
     async getLinePassages(line) {
       return fetchPassages(line);
-    },
-    async getPassages(stopIds, line) {
-      return fetchPassages(line, stopIds);
     },
   };
 }

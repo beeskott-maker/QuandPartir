@@ -24,6 +24,9 @@ const UPSTREAM = 'https://data.grandlyon.com/fr/datapusher/ws/rdata';
 const PASSAGES_PATH = '/tcl_sytral.tclpassagearret/all.json';
 const MAX_FEATURES = 5000;
 const CACHE_TTL_MS = 20_000;
+/** Appels autorisés par adresse IP et par minute : large pour l'appli (2 par minute). */
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
 
 interface Row {
   id?: string | number;
@@ -34,8 +37,24 @@ interface Row {
 /** Passages par ligne, en mémoire par instance (l'API Cache ne marche pas sur workers.dev). */
 const cache = new Map<string, { expires: number; rows: Row[] }>();
 
+/** Appels récents par adresse IP, par instance du Worker (limite approximative mais gratuite). */
+const calls = new Map<string, { windowStart: number; count: number }>();
+
 export function clearCache(): void {
   cache.clear();
+  calls.clear();
+}
+
+function overLimit(ip: string, now = Date.now()): boolean {
+  const entry = calls.get(ip);
+  if (!entry || now - entry.windowStart >= RATE_WINDOW_MS) {
+    // Ménage des fenêtres expirées pour ne pas garder toutes les adresses.
+    if (calls.size > 10_000) for (const [key, e] of calls) if (now - e.windowStart >= RATE_WINDOW_MS) calls.delete(key);
+    calls.set(ip, { windowStart: now, count: 1 });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_LIMIT;
 }
 
 function corsHeaders(origin: string | null, env: Env): Record<string, string> {
@@ -92,6 +111,10 @@ export default {
       });
     }
     if (request.method !== 'GET') return error('Méthode non autorisée', 405, cors);
+    const ip = request.headers.get('CF-Connecting-IP') ?? 'inconnue';
+    if (overLimit(ip)) {
+      return json({ error: 'Trop de requêtes' }, 429, { ...cors, 'Retry-After': '60' });
+    }
 
     const url = new URL(request.url);
     if (url.pathname !== PASSAGES_PATH) return error('Jeu de données inconnu', 404, cors);
