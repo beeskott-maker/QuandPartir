@@ -50,7 +50,7 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   expect(widget()).toHaveTextContent('Choisis un arrêt du T2 ci-dessous.');
   await chooseStop('Arrêt B');
   expect(await within(widget()).findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
-  expect(widget()).toHaveTextContent(/Prochain T2 direction Direction . à \d{2}:\d{2}/);
+  expect(widget()).toHaveTextContent(/Prochain T2 direction Direction . à \d{2}:\d{2}:\d{2}/);
   expect(getPassages).toHaveBeenCalledWith(['3', '4'], 'T2');
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
@@ -107,7 +107,7 @@ describe('temps de trajet', () => {
   it('compte à rebours jusqu’au passage quand on est déjà à l’arrêt', async () => {
     render(<App api={api} />);
     expect(await within(widget()).findByText('3:10 minutes')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain T1 direction Part-Dieu à 13:03');
+    expect(widget()).toHaveTextContent('Prochain T1 direction Part-Dieu à 13:03:10');
   });
 
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
@@ -118,7 +118,7 @@ describe('temps de trajet', () => {
     expect(await within(widget()).findByText('1:10 minutes')).toBeInTheDocument();
     clickWalk('plus', 3);
     expect(await within(widget()).findByText('5:00 minutes')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain T1 direction IUT Feyssine à 13:10');
+    expect(widget()).toHaveTextContent('Prochain T1 direction IUT Feyssine à 13:10:00');
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
   });
 

@@ -1,4 +1,4 @@
-import { formatCountdown, nextPassage } from './countdown';
+import { formatCountdown, formatTime, nextPassage } from './countdown';
 import type { Passage } from './types';
 
 const at = (time: string): Passage => ({
@@ -26,4 +26,9 @@ it('ignore les passages qu’on n’a plus le temps d’attraper', () => {
   const passages = [at('13:03:00'), at('13:10:00')];
   // À 13:00 avec 5 min de trajet, le tram de 13:03 est manqué.
   expect(nextPassage(passages, new Date('2026-10-25T13:00:00'), 5 * 60_000)).toBe(passages[1]);
+});
+
+it('affiche l’heure de passage à la seconde', () => {
+  expect(formatTime(new Date('2026-10-25T13:03:10'))).toBe('13:03:10');
+  expect(formatTime(new Date('2026-10-25T09:05:00'))).toBe('09:05:00');
 });
