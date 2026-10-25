@@ -27,19 +27,6 @@ body {
   background: #fff3cd;
 }
 
-.passages {
-  padding: 0;
-  list-style: none;
-}
-
-.passages li {
-  padding: 8px 0;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.theoretical {
-  color: #666;
-}
 
 .nearby {
   margin: 0;

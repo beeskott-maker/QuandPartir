@@ -1,12 +1,13 @@
-// Génère public/arrets.json : pour chaque ligne suivie, la liste des arrêts
+// Génère public/arrets.json : pour chaque ligne proposée dans l'appli, la liste des arrêts
 // (nom -> codes d'arrêt et position moyenne des quais) tirée du jeu « tcl_sytral.tclarret » de data.grandlyon.com.
 // Lancé par la CI avant le build ; en local : GRANDLYON_USER=… GRANDLYON_PASSWORD=… npm run stops
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const URL_ARRETS =
   'https://data.grandlyon.com/fr/datapusher/ws/rdata/tcl_sytral.tclarret/all.json?maxfeatures=5000&start=1';
-// Lignes suivies par l'appli (voir src/lib/lines.ts).
-const LINES = (process.env.LINES ?? 'T1').split(',').map((l) => l.trim().toUpperCase());
+// Lignes proposées : toutes les lignes de tram (T1, T2…), ou la liste LINES=T1,T2.
+const TRAM = /^T\d+$/;
+const LINES_ENV = process.env.LINES?.split(',').map((l) => l.trim().toUpperCase());
 const OUTPUT = new URL('../public/arrets.json', import.meta.url);
 
 const { GRANDLYON_USER: user, GRANDLYON_PASSWORD: password } = process.env;
@@ -48,6 +49,16 @@ function center(coords) {
 }
 
 const rows = await fetchAll(process.env.STOPS_URL ?? URL_ARRETS);
+const LINES =
+  LINES_ENV ??
+  [...new Set(rows.flatMap((row) => linesOf(row.desserte)).filter((line) => TRAM.test(line)))].sort((a, b) =>
+    a.localeCompare(b, 'fr', { numeric: true }),
+  );
+if (LINES.length === 0) {
+  console.error(`Aucune ligne de tram trouvée parmi ${rows.length} arrêts.`);
+  console.error('Exemple :', JSON.stringify(rows[0]));
+  process.exit(1);
+}
 const lines = {};
 for (const line of LINES) {
   const byName = new Map();

@@ -1,8 +1,11 @@
 import type { Passage } from './types';
 
-/** Prochain passage encore à venir (les passages sont triés par heure). */
-export function nextPassage(passages: Passage[], now: Date): Passage | null {
-  return passages.find((p) => p.departure.getTime() > now.getTime()) ?? null;
+/**
+ * Prochain passage qu'on peut encore attraper en partant maintenant, compte tenu
+ * du temps de trajet jusqu'à l'arrêt (les passages sont triés par heure).
+ */
+export function nextPassage(passages: Passage[], now: Date, walkMs = 0): Passage | null {
+  return passages.find((p) => p.departure.getTime() - walkMs > now.getTime()) ?? null;
 }
 
 /** Temps restant en « m:ss », par exemple « 3:10 ». */

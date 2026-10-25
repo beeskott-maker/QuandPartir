@@ -21,9 +21,10 @@ Les identifiants ne doivent jamais arriver dans le navigateur : le front appelle
 **relais**, un Cloudflare Worker (dossier `worker/`), qui ajoute l'authentification.
 
 - Grand Lyon n'est interrogé que **ligne par ligne** (`field=ligne&value=…`),
-  jamais sur tout le réseau. La ligne vient du paramètre `ligne` (T1 par défaut) ;
-  pour l'instant l'appli utilise toujours la T1 (`src/lib/lines.ts`).
-- La liste des arrêts de la ligne (nom -> codes d'arrêt, jeu `tcl_sytral.tclarret`)
+  jamais sur tout le réseau. La ligne vient du paramètre `ligne` : celle que
+  l'utilisateur a choisie dans l'appli (choix obligatoire).
+- Les lignes proposées (toutes les lignes de tram, ou `LINES=T1,T2`) et leurs arrêts
+  (nom -> codes d'arrêt et position, jeu `tcl_sytral.tclarret`)
   est générée à chaque déploiement par `scripts/fetch-stops.mjs` dans
   `public/arrets.json` et publiée avec le site : l'appli ne la demande pas à l'API.
   En local : `GRANDLYON_USER=… GRANDLYON_PASSWORD=… npm run stops`.

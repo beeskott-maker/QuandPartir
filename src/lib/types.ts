@@ -26,6 +26,8 @@ export interface Stop {
 export interface PassagesApi {
   /** Indique si l'appli tourne sur des données fictives. */
   readonly demo: boolean;
+  /** Lignes proposées (codes TCL, par exemple « T1 »), triées. */
+  getLines(): Promise<string[]>;
   /** Arrêts desservis par une ligne, triés par nom. */
   getStops(line: string): Promise<Stop[]>;
   /** Prochains passages d'une ligne à un arrêt (tous ses codes), triés par heure. */

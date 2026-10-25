@@ -56,13 +56,24 @@ export function parsePassages(body: unknown): Passage[] {
  */
 export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof fetch = fetch): PassagesApi {
   const root = baseUrl.replace(/\/+$/, '');
+  // Fichier lu une seule fois : il contient les lignes et leurs arrêts.
+  let stopsFile: Promise<Record<string, Stop[]>> | null = null;
+  const loadStops = () => {
+    stopsFile ??= fetchFn(stopsUrl).then(async (response) => {
+      if (!response.ok) throw new TclApiError('Liste des lignes et arrêts indisponible', response.status);
+      const body = (await response.json()) as { lines?: Record<string, Stop[]> };
+      return body.lines ?? {};
+    });
+    stopsFile.catch(() => (stopsFile = null));
+    return stopsFile;
+  };
   return {
     demo: false,
+    async getLines() {
+      return Object.keys(await loadStops()).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+    },
     async getStops(line) {
-      const response = await fetchFn(stopsUrl);
-      if (!response.ok) throw new TclApiError('Liste des arrêts indisponible', response.status);
-      const body = (await response.json()) as { lines?: Record<string, Stop[]> };
-      return body.lines?.[line] ?? [];
+      return (await loadStops())[line] ?? [];
     },
     async getPassages(stopIds, line) {
       // Le relais n'interroge Grand Lyon que sur la ligne demandée.

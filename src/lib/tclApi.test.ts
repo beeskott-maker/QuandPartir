@@ -55,12 +55,14 @@ describe('createTclApi', () => {
     expect(new URL(url).searchParams.get('value')).toBe('1,2');
   });
 
-  it('lit les arrêts de la ligne dans le fichier généré', async () => {
-    const stops = { lines: { T1: [{ name: 'Bellecour', ids: ['1', '2'] }] } };
+  it('lit les lignes et leurs arrêts dans le fichier généré, chargé une seule fois', async () => {
+    const stops = { lines: { T10: [], T2: [], T1: [{ name: 'Bellecour', ids: ['1', '2'] }] } };
     const fetchFn = vi.fn(async () => new Response(JSON.stringify(stops), { status: 200 }));
     const api = createTclApi('https://api.test', '/arrets.json', fetchFn as unknown as typeof fetch);
+    expect(await api.getLines()).toEqual(['T1', 'T2', 'T10']);
     expect(await api.getStops('T1')).toEqual(stops.lines.T1);
-    expect(await api.getStops('T2')).toEqual([]);
+    expect(await api.getStops('T3')).toEqual([]);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
     expect((fetchFn.mock.calls[0] as unknown[])[0]).toBe('/arrets.json');
   });
 });
