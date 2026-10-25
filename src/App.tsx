@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
+import { DepartureWidget } from './components/DepartureWidget';
+import { formatTime } from './lib/countdown';
 import { currentPosition, formatDistance, nearestStop } from './lib/geo';
 import { DEFAULT_LINE } from './lib/lines';
 import type { Passage, PassagesApi, Stop } from './lib/types';
 
 const REFRESH_MS = 30_000;
 const STORAGE_KEY = 'quandpartir.arret';
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-}
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -105,6 +103,7 @@ export function App({ api }: { api: PassagesApi }) {
 
   return (
     <main className="page">
+      <DepartureWidget line={line} hasStop={Boolean(stop)} passages={passages} />
       <h1>QuandPartir</h1>
       <p>Ligne {line}</p>
       {api.demo && <p className="badge">Mode démo : passages fictifs</p>}

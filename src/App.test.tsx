@@ -70,3 +70,15 @@ it('explique un refus de localisation', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Localisation refusée');
 });
+
+it('affiche en haut le compte à rebours avant le prochain passage de l’arrêt choisi', async () => {
+  const api = createDemoApi();
+  render(<App api={api} />);
+  const widget = screen.getByRole('region', { name: 'Prochain départ' });
+  expect(widget).toHaveTextContent('Choisis un arrêt du T1 ci-dessous.');
+  await screen.findByRole('option', { name: 'Arrêt A' });
+  fireEvent.change(screen.getByLabelText('Arrêt'), { target: { value: 'Arrêt A' } });
+  expect(await screen.findByText(/\d+:\d{2} minutes/)).toBeInTheDocument();
+  expect(widget).toHaveTextContent('Partir dans');
+  expect(widget).toHaveTextContent(/Prochain T1 direction Direction A à \d{2}:\d{2}/);
+});

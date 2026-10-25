@@ -1,7 +1,7 @@
 :root {
   font-family: system-ui, sans-serif;
   color: #1c1b1f;
-  background: #fff;
+  background: #f4f4f4;
 }
 
 body {
@@ -44,4 +44,38 @@ body {
 .nearby {
   margin: 0;
   color: #666;
+}
+
+.widget {
+  margin-bottom: 24px;
+  padding: 28px 24px;
+  border-radius: 28px;
+  background: #fff;
+  color: #ff9040;
+  box-shadow: 0 2px 16px rgb(0 0 0 / 8%);
+  font-variant-numeric: tabular-nums;
+}
+
+.widget p {
+  margin: 0;
+}
+
+.widget-label {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.widget-countdown {
+  /* Tient sur une ligne, du téléphone (≈ 42 px) au grand écran. */
+  font-size: clamp(32px, 10.5vw, 64px);
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.widget-detail {
+  margin-top: 24px !important;
+  font-size: 18px;
+  font-weight: 300;
 }
