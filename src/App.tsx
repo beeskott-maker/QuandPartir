@@ -1,4 +1,4 @@
-import { Badge, BannerSlim, Button, Flex, SelectList, Text } from 'gestalt';
+import { Badge, BannerSlim, Flex, IconButton, SelectList, Text } from 'gestalt';
 import { useEffect, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
 import { MinuteStepper } from './components/MinuteStepper';
@@ -192,31 +192,36 @@ export function App({ api }: { api: PassagesApi }) {
         </SelectList>
 
         <Flex direction="column" gap={2}>
-          <SelectList
-            id="stop"
-            label="Arrêt"
-            size="lg"
-            placeholder={
-              !lineChosen ? 'Choisir d’abord une ligne' : stops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
-            }
-            value={stop ? stopName : null}
-            onChange={({ value }) => chooseStop(value)}
-            disabled={!stops.length}
-          >
-            {stops.map((s) => (
-              <SelectList.Option key={s.name} label={s.name} value={s.name} />
-            ))}
-          </SelectList>
-          {canLocate && (
-            <Button
-              text={locating ? 'Localisation…' : 'Arrêt le plus proche'}
-              iconStart="location"
-              size="lg"
-              fullWidth
-              onClick={chooseNearest}
-              disabled={locating}
-            />
-          )}
+          <Flex alignItems="end" gap={2}>
+            <Flex.Item flex="grow" minWidth={0}>
+              <SelectList
+                id="stop"
+                label="Arrêt"
+                size="lg"
+                placeholder={
+                  !lineChosen ? 'Choisir d’abord une ligne' : stops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
+                }
+                value={stop ? stopName : null}
+                onChange={({ value }) => chooseStop(value)}
+                disabled={!stops.length}
+              >
+                {stops.map((s) => (
+                  <SelectList.Option key={s.name} label={s.name} value={s.name} />
+                ))}
+              </SelectList>
+            </Flex.Item>
+            {canLocate && (
+              <IconButton
+                accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
+                tooltip={{ text: 'Arrêt le plus proche' }}
+                icon="location"
+                bgColor="lightGray"
+                size="lg"
+                onClick={chooseNearest}
+                disabled={locating}
+              />
+            )}
+          </Flex>
           {nearby && nearby.name === stopName && (
             <Text color="subtle" size="200">
               Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.
