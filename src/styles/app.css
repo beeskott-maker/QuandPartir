@@ -19,7 +19,8 @@ body {
   padding: 28px 24px;
   border-radius: 28px;
   background: #fff;
-  color: #ff9040;
+  /* Couleur du bouton principal du design system Gestalt. */
+  color: var(--color-background-button-primary-default);
   box-shadow: 0 2px 16px rgb(0 0 0 / 8%);
   font-variant-numeric: tabular-nums;
 }
