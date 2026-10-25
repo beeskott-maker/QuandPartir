@@ -30,6 +30,16 @@ Le front appelle alors `/api/grandlyon/...`, relayé vers
 Pour une version publiée, un relais déployé (fonction serveur) sera nécessaire ;
 son adresse se donne au front avec `VITE_TCL_API_URL`.
 
+## Déploiement
+
+Chaque push sur `main` lance la CI (`.github/workflows/deploy.yml`) : lint, types,
+tests, build, puis publication sur GitHub Pages à
+https://beeskott-maker.github.io/quandpartir/.
+
+Sans relais déployé, la version publiée tourne en mode démo. Une fois un relais
+disponible, renseigner son adresse dans la variable de dépôt `VITE_TCL_API_URL`
+(Settings → Secrets and variables → Actions → Variables).
+
 ## Vérifications
 
 ```bash
