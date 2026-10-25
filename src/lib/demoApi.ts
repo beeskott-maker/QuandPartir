@@ -14,8 +14,24 @@ export function createDemoApi(now: () => Date = () => new Date()): PassagesApi {
     async getLines() {
       return ['T1', 'C3', 'A', 'T2'];
     },
-    async getDirections() {
-      return DEMO_DIRECTIONS;
+    async getLinePassages(line) {
+      // Parcours fictif : Arrêt B -> Arrêt C -> Arrêt A vers « Direction A », l'inverse vers « Direction B ».
+      const start = now().getTime();
+      const route = [
+        { direction: DEMO_DIRECTIONS[0], ids: ['3', '5', '1'] },
+        { direction: DEMO_DIRECTIONS[1], ids: ['2', '6', '4'] },
+      ];
+      return route.flatMap(({ direction, ids }, r) =>
+        ids.map((stopId, i) => ({
+          stopId,
+          line,
+          direction,
+          departure: new Date(start + (2 + r + i * 2) * 60_000),
+          delayLabel: '',
+          realtime: true,
+          course: `demo-${r}`,
+        })),
+      );
     },
     async getStops() {
       return DEMO_STOPS;

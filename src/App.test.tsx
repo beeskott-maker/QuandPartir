@@ -108,6 +108,17 @@ it('bascule sur l’autre direction', async () => {
   expect(screen.getByLabelText('Direction')).toHaveValue('Direction A');
 });
 
+it('range les arrêts dans l’ordre du parcours, du terminus opposé jusqu’à la direction choisie', async () => {
+  render(<App api={createDemoApi()} />);
+  await chooseLine('T1');
+  await screen.findByRole('option', { name: 'Direction A' });
+  const stopNames = () => within(screen.getByLabelText('Arrêt')).getAllByRole('option').map((o) => o.textContent);
+  fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'Direction A' } });
+  await waitFor(() => expect(stopNames()).toEqual(['Arrêt B', 'Arrêt C', 'Arrêt A']));
+  fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'Direction B' } });
+  await waitFor(() => expect(stopNames()).toEqual(['Arrêt A', 'Arrêt C', 'Arrêt B']));
+});
+
 it('redemande la direction et l’arrêt quand la ligne change', async () => {
   render(<App api={createDemoApi()} />);
   await chooseLine('T1');
@@ -134,7 +145,7 @@ describe('temps de trajet', () => {
   const api: PassagesApi = {
     demo: false,
     getLines: async () => ['T1'],
-    getDirections: async () => ['IUT Feyssine', 'Part-Dieu'],
+    getLinePassages: async () => [passage('13:03:10', 'Part-Dieu'), passage('13:10:00', 'IUT Feyssine')],
     getStops: async () => [{ name: 'Bellecour', ids: ['1'] }],
     getPassages: async () => [passage('13:03:10', 'Part-Dieu'), passage('13:10:00', 'IUT Feyssine')],
   };
@@ -211,7 +222,7 @@ it('affiche l’erreur de l’API', async () => {
   const api: PassagesApi = {
     demo: false,
     getLines: async () => ['T1'],
-    getDirections: async () => ['IUT Feyssine', 'Part-Dieu'],
+    getLinePassages: async () => [],
     getStops: async () => [{ name: 'Arrêt A', ids: ['1'] }],
     getPassages: () => Promise.reject(new Error('Accès refusé')),
   };

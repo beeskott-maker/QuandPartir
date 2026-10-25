@@ -12,6 +12,8 @@ export interface Passage {
   delayLabel: string;
   /** true si l'heure est estimée en temps réel, false si elle est théorique. */
   realtime: boolean;
+  /** Identifiant de la course (même tram d'un arrêt à l'autre), si connu. */
+  course?: string;
 }
 
 /** Un arrêt d'une ligne : un nom, un ou plusieurs codes (un par quai ou sens). */
@@ -28,8 +30,8 @@ export interface PassagesApi {
   readonly demo: boolean;
   /** Lignes proposées (codes TCL, par exemple « T1 »), triées. */
   getLines(): Promise<string[]>;
-  /** Directions (terminus) annoncées en ce moment sur une ligne, triées. */
-  getDirections(line: string): Promise<string[]>;
+  /** Tous les passages annoncés sur une ligne (directions, ordre des arrêts). */
+  getLinePassages(line: string): Promise<Passage[]>;
   /** Arrêts desservis par une ligne, triés par nom. */
   getStops(line: string): Promise<Stop[]>;
   /** Prochains passages d'une ligne à un arrêt (tous ses codes), triés par heure. */

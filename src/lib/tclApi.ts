@@ -10,6 +10,7 @@ interface RawPassage {
   delaipassage?: string;
   type?: string;
   heurepassage?: string;
+  coursetheorique?: string;
 }
 
 export class TclApiError extends Error {
@@ -45,6 +46,7 @@ export function parsePassages(body: unknown): Passage[] {
       departure,
       delayLabel: raw.delaipassage ?? '',
       realtime: raw.type === 'E',
+      course: raw.coursetheorique,
     });
   }
   return passages.sort((a, b) => a.departure.getTime() - b.departure.getTime());
@@ -93,9 +95,8 @@ export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof 
     async getStops(line) {
       return (await loadStops())[line] ?? [];
     },
-    async getDirections(line) {
-      const directions = new Set((await fetchPassages(line)).map((p) => p.direction).filter(Boolean));
-      return [...directions].sort((a, b) => a.localeCompare(b, 'fr'));
+    async getLinePassages(line) {
+      return fetchPassages(line);
     },
     async getPassages(stopIds, line) {
       return fetchPassages(line, stopIds);

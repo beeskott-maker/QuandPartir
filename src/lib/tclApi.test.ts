@@ -66,17 +66,19 @@ describe('createTclApi', () => {
     expect((fetchFn.mock.calls[0] as unknown[])[0]).toBe('/arrets.json');
   });
 
-  it('liste les directions de la ligne à partir de ses passages', async () => {
+  it('récupère tous les passages de la ligne, avec leur course', async () => {
     const body = {
       values: [
-        { id: 1, ligne: 'T1', direction: 'Part-Dieu', type: 'E', heurepassage: '2026-10-25 14:03:00' },
+        { id: 1, ligne: 'T1', direction: 'Part-Dieu', type: 'E', heurepassage: '2026-10-25 14:03:00', coursetheorique: 'c1' },
         { id: 2, ligne: 'T1', direction: 'IUT Feyssine', type: 'E', heurepassage: '2026-10-25 14:04:00' },
         { id: 3, ligne: 'T1', direction: 'Part-Dieu', type: 'E', heurepassage: '2026-10-25 14:05:00' },
       ],
     };
     const fetchFn = vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }));
     const api = createTclApi('https://api.test', '/arrets.json', fetchFn as unknown as typeof fetch);
-    expect(await api.getDirections('T1')).toEqual(['IUT Feyssine', 'Part-Dieu']);
+    const linePassages = await api.getLinePassages('T1');
+    expect(linePassages[0].course).toBe('c1');
+    expect(linePassages.map((p) => p.direction)).toEqual(['Part-Dieu', 'IUT Feyssine', 'Part-Dieu']);
     const url = (fetchFn.mock.calls[0] as unknown[])[0] as string;
     expect(url).toBe('https://api.test/tcl_sytral.tclpassagearret/all.json?ligne=T1');
   });

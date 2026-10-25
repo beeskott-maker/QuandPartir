@@ -1,11 +1,12 @@
 import { Badge, BannerSlim, Flex, IconButton, SelectList, Text } from 'gestalt';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
 import { MinuteStepper } from './components/MinuteStepper';
 import { otherDirection } from './lib/directions';
 import { currentPosition, formatDistance, nearestStop } from './lib/geo';
 import { groupLines } from './lib/lines';
 import { readPreference, savePreference } from './lib/preferences';
+import { orderStops } from './lib/stopOrder';
 import type { Passage, PassagesApi, Stop } from './lib/types';
 
 const REFRESH_MS = 30_000;
@@ -23,7 +24,7 @@ function readWalkMinutes(): number {
 export function App({ api }: { api: PassagesApi }) {
   const [lines, setLines] = useState<string[]>([]);
   const [line, setLine] = useState(() => readPreference('ligne'));
-  const [directions, setDirections] = useState<string[]>([]);
+  const [linePassages, setLinePassages] = useState<Passage[]>([]);
   const [direction, setDirection] = useState(() => readPreference('direction'));
   const [stops, setStops] = useState<Stop[]>([]);
   const [stopName, setStopName] = useState(() => readPreference('arret'));
@@ -61,17 +62,24 @@ export function App({ api }: { api: PassagesApi }) {
   }, [api, lineChosen]);
 
   useEffect(() => {
-    setDirections([]);
+    setLinePassages([]);
     if (!lineChosen) return;
     let cancelled = false;
-    api.getDirections(lineChosen).then(
-      (result) => !cancelled && setDirections(result),
+    api.getLinePassages(lineChosen).then(
+      (result) => !cancelled && setLinePassages(result),
       (e) => !cancelled && setError(message(e)),
     );
     return () => {
       cancelled = true;
     };
   }, [api, lineChosen]);
+
+  // Directions (terminus) annoncées sur la ligne, et arrêts dans l'ordre du parcours.
+  const directions = useMemo(
+    () => [...new Set(linePassages.map((p) => p.direction).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr')),
+    [linePassages],
+  );
+  const orderedStops = useMemo(() => orderStops(stops, linePassages, direction), [stops, linePassages, direction]);
 
   // Une direction retenue reste proposée même si aucun passage ne l'annonce en ce moment.
   const directionOptions = direction && !directions.includes(direction) ? [direction, ...directions] : directions;
@@ -234,7 +242,7 @@ export function App({ api }: { api: PassagesApi }) {
                   onChange={({ value }) => chooseStop(value)}
                   disabled={!stops.length}
                 >
-                  {stops.map((s) => (
+                  {orderedStops.map((s) => (
                     <SelectList.Option key={s.name} label={s.name} value={s.name} />
                   ))}
                 </SelectList>
