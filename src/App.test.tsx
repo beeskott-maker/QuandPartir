@@ -467,5 +467,8 @@ it('explique un refus de localisation', async () => {
   await openSettings();
   await chooseLine('T1');
   fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Localisation refusée');
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Localisation refusée');
+  // Sous l'arrêt, dans les réglages, et non en bas de page hors de l'écran.
+  expect(alert.closest('.settings')).not.toBeNull();
 });

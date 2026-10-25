@@ -42,6 +42,8 @@ export function App({ api }: { api: PassagesApi }) {
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [nearby, setNearby] = useState<{ name: string; distance: number } | null>(null);
+  // Échec du bouton « Me localiser », affiché sous l'arrêt pour rester visible.
+  const [locateError, setLocateError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,6 +188,7 @@ export function App({ api }: { api: PassagesApi }) {
     const line = lineChosen;
     const candidates = lineStops;
     setLocating(true);
+    setLocateError(null);
     try {
       const position = await currentPosition();
       if (currentLine.current !== line) return;
@@ -196,7 +199,7 @@ export function App({ api }: { api: PassagesApi }) {
       }
       setError(null);
     } catch (e) {
-      if (!auto) setError(message(e));
+      if (!auto) setLocateError(message(e));
     } finally {
       setLocating(false);
     }
@@ -332,6 +335,13 @@ export function App({ api }: { api: PassagesApi }) {
                                 )}
                               </Flex>
                             </div>
+                            {locateError && (
+                              <div role="alert">
+                                <Text color="error" size="200">
+                                  {locateError}
+                                </Text>
+                              </div>
+                            )}
                             {nearby && nearby.name === stopName && (
                               <Text color="subtle" size="200">
                                 Arrêt le plus proche de toi, à {formatDistance(nearby.distance)} à vol d’oiseau.
