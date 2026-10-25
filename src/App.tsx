@@ -1,5 +1,5 @@
 import { Badge, BannerSlim, Flex, IconButton, SelectList, Text } from 'gestalt';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
 import { MinuteStepper } from './components/MinuteStepper';
 import { currentPosition, formatDistance, nearestStop } from './lib/geo';
@@ -127,7 +127,11 @@ export function App({ api }: { api: PassagesApi }) {
 
   const canLocate = stops.some((s) => s.lat != null && s.lon != null);
 
-  const chooseNearest = async () => {
+  /**
+   * Sélectionne l'arrêt le plus proche. Lancée automatiquement au chargement,
+   * un échec (localisation refusée…) est silencieux : l'arrêt retenu reste choisi.
+   */
+  const chooseNearest = async ({ auto = false } = {}) => {
     setLocating(true);
     try {
       const found = nearestStop(stops, await currentPosition());
@@ -137,11 +141,21 @@ export function App({ api }: { api: PassagesApi }) {
       }
       setError(null);
     } catch (e) {
-      setError(message(e));
+      if (!auto) setError(message(e));
     } finally {
       setLocating(false);
     }
   };
+
+  // Au chargement, avec la ligne retenue, on cherche l'arrêt le plus proche une seule fois.
+  const autoLocate = useRef(Boolean(readPreference('ligne')));
+  useEffect(() => {
+    if (!autoLocate.current || !lineChosen || !canLocate) return;
+    autoLocate.current = false;
+    chooseNearest({ auto: true });
+    // chooseNearest lit les arrêts de ce rendu : c'est voulu, ils viennent d'arriver.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineChosen, canLocate]);
 
   return (
     <main className="page">
@@ -217,7 +231,7 @@ export function App({ api }: { api: PassagesApi }) {
                 icon="location"
                 bgColor="lightGray"
                 size="lg"
-                onClick={chooseNearest}
+                onClick={() => chooseNearest()}
                 disabled={locating}
               />
             )}

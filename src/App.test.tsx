@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './App';
 import { createDemoApi } from './lib/demoApi';
 import type { Passage, PassagesApi } from './lib/types';
@@ -212,6 +212,45 @@ it('sélectionne l’arrêt le plus proche de la position', async () => {
   expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
   expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
   expect(getPassages).toHaveBeenCalledWith(['3', '4'], 'T1');
+});
+
+describe('au chargement', () => {
+  beforeEach(() => {
+    localStorage.setItem('quandpartir.ligne', 'T1');
+    localStorage.setItem('quandpartir.direction', 'Direction B');
+    localStorage.setItem('quandpartir.arret', 'Arrêt A');
+    localStorage.setItem('quandpartir.trajet', '6');
+  });
+
+  it('reprend ligne, direction et temps de trajet, puis géolocalise pour choisir l’arrêt', async () => {
+    mockPosition({ lat: 45.7486, lon: 4.8256 });
+    const api = createDemoApi();
+    const getPassages = vi.spyOn(api, 'getPassages');
+    render(<App api={api} />);
+    expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Ligne')).toHaveValue('T1');
+    expect(screen.getByLabelText('Direction')).toHaveValue('Direction B');
+    expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
+    expect(walk()).toHaveTextContent('6 min');
+    expect(getPassages).toHaveBeenLastCalledWith(['3', '4'], 'T1');
+    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('garde l’arrêt retenu, sans message, si la localisation est refusée', async () => {
+    mockPosition({ denied: true });
+    render(<App api={createDemoApi()} />);
+    await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalled());
+    expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt A');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+it('ne géolocalise pas au premier chargement, sans ligne retenue', async () => {
+  mockPosition({ lat: 45.7486, lon: 4.8256 });
+  render(<App api={createDemoApi()} />);
+  await chooseLine('T1');
+  await screen.findByRole('option', { name: 'Arrêt B' });
+  expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
 });
 
 it('explique un refus de localisation', async () => {
