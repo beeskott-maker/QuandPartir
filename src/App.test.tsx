@@ -24,6 +24,13 @@ async function chooseStop(name: string) {
   fireEvent.change(screen.getByLabelText('Arrêt'), { target: { value: name } });
 }
 
+/** Déplie la section « Réglages » si elle est repliée (ses champs ne sont alors pas affichés). */
+async function openSettings() {
+  const toggle = await screen.findByRole('button', { name: /(Déplier|Replier) les réglages/ });
+  if (toggle.getAttribute('aria-label') === 'Déplier les réglages') fireEvent.click(toggle);
+  await screen.findByLabelText('Ligne');
+}
+
 const widget = () => screen.getByRole('region', { name: 'Prochain départ' });
 const walk = () => screen.getByRole('group', { name: 'Temps pour rejoindre l’arrêt' });
 
@@ -41,6 +48,7 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   const api = createDemoApi();
   const getLinePassages = vi.spyOn(api, 'getLinePassages');
   render(<App api={api} />);
+  await openSettings();
   expect(screen.queryByRole('heading', { name: 'QuandPartir' })).not.toBeInTheDocument();
   // Ligne obligatoire : rien n'est choisi d'office et l'arrêt attend la ligne.
   expect(await within(screen.getByLabelText('Ligne')).findByText('Choisir une ligne')).toBeDisabled();
@@ -58,8 +66,45 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
 
+describe('section Réglages', () => {
+  it('est repliée, avec son seul titre, quand tout est réglé', async () => {
+    localStorage.setItem('quandpartir.ligne', 'T1');
+    localStorage.setItem('quandpartir.direction', 'Direction A');
+    localStorage.setItem('quandpartir.arret', 'Arrêt C');
+    render(<App api={createDemoApi()} />);
+    expect(await within(widget()).findByText(/\d+:\d{2} min\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Déplier les réglages' })).toBeInTheDocument();
+    expect(screen.getByText('Réglages')).toBeInTheDocument();
+    // Ni champ ni résumé des valeurs.
+    expect(screen.queryByLabelText('Ligne')).not.toBeInTheDocument();
+    expect(screen.queryByText('Arrêt C')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Déplier les réglages' }));
+    expect(await screen.findByLabelText('Arrêt')).toHaveValue('Arrêt C');
+  });
+
+  it('se déplie d’office sans ligne choisie, et reste ouverte une fois complétée', async () => {
+    render(<App api={createDemoApi()} />);
+    expect(await screen.findByRole('button', { name: 'Replier les réglages' })).toBeInTheDocument();
+    await chooseLine('T1');
+    await chooseStop('Arrêt B');
+    expect(await within(widget()).findByText(/\d+:\d{2} min\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replier les réglages' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Replier les réglages' }));
+    expect(screen.queryByLabelText('Ligne')).not.toBeInTheDocument();
+  });
+
+  it('se déplie d’office quand l’arrêt retenu n’existe plus', async () => {
+    localStorage.setItem('quandpartir.ligne', 'T1');
+    localStorage.setItem('quandpartir.arret', 'Arrêt disparu');
+    render(<App api={createDemoApi()} />);
+    expect(await screen.findByRole('button', { name: 'Replier les réglages' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Ligne')).toHaveValue('T1');
+  });
+});
+
 it('propose toutes les lignes : métro, puis tram, puis bus', async () => {
   render(<App api={createDemoApi()} />);
+  await openSettings();
   await screen.findByRole('option', { name: 'T1' });
   const groups = within(screen.getByLabelText('Ligne')).getAllByRole('group');
   expect(groups.map((g) => g.getAttribute('label'))).toEqual(['Métro et funiculaire', 'Tram', 'Bus']);
@@ -77,6 +122,7 @@ it('retient la ligne, l’arrêt et le temps de trajet', async () => {
   localStorage.setItem('quandpartir.arret', 'Arrêt C');
   localStorage.setItem('quandpartir.trajet', '4');
   render(<App api={createDemoApi()} />);
+  await openSettings();
   expect(await within(widget()).findByText(/\d+:\d{2} min\./)).toBeInTheDocument();
   expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt C');
   expect(walk()).toHaveTextContent('4 min');
@@ -84,6 +130,7 @@ it('retient la ligne, l’arrêt et le temps de trajet', async () => {
 
 it('propose la direction sous la ligne et choisit d’office la première', async () => {
   render(<App api={createDemoApi()} />);
+  await openSettings();
   const labels = screen.getAllByText(/^(Ligne|Direction|Arrêt)$/).map((el) => el.textContent);
   expect(labels).toEqual(['Ligne', 'Direction', 'Arrêt']);
   expect(screen.getByLabelText('Direction')).toBeDisabled();
@@ -96,6 +143,7 @@ it('propose la direction sous la ligne et choisit d’office la première', asyn
 
 it('bascule sur l’autre direction', async () => {
   render(<App api={createDemoApi()} />);
+  await openSettings();
   const swap = screen.getByRole('button', { name: 'Basculer sur l’autre direction' });
   expect(swap).toBeDisabled();
   await chooseLine('T1');
@@ -109,6 +157,7 @@ it('bascule sur l’autre direction', async () => {
 
 it('range les arrêts dans l’ordre du parcours, du terminus opposé jusqu’à la direction choisie', async () => {
   render(<App api={createDemoApi()} />);
+  await openSettings();
   await chooseLine('T1');
   await screen.findByRole('option', { name: 'Direction A' });
   const stopNames = () => within(screen.getByLabelText('Arrêt')).getAllByRole('option').map((o) => o.textContent);
@@ -120,6 +169,7 @@ it('range les arrêts dans l’ordre du parcours, du terminus opposé jusqu’à
 
 it('redemande la direction et l’arrêt quand la ligne change', async () => {
   render(<App api={createDemoApi()} />);
+  await openSettings();
   await chooseLine('T1');
   await screen.findByRole('option', { name: 'Direction A' });
   fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'Direction A' } });
@@ -168,6 +218,7 @@ describe('temps de trajet', () => {
 
   it('compte à rebours jusqu’au passage quand on est déjà à l’arrêt', async () => {
     render(<App api={api} />);
+    await openSettings();
     expect(await within(widget()).findByText('3:10 min.')).toBeInTheDocument();
     expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:03:10');
     // « Prochain tram T1 » sur une ligne, la direction sur la suivante.
@@ -176,6 +227,7 @@ describe('temps de trajet', () => {
 
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
     render(<App api={api} />);
+    await openSettings();
     await within(widget()).findByText('3:10 min.');
     clickWalk('plus', 2);
     expect(walk()).toHaveTextContent('2 min');
@@ -189,6 +241,7 @@ describe('temps de trajet', () => {
 
   it('ne compte que les trams de la direction choisie', async () => {
     render(<App api={api} />);
+    await openSettings();
     await within(widget()).findByText('3:10 min.');
     await screen.findByRole('option', { name: 'IUT Feyssine' });
     fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'IUT Feyssine' } });
@@ -200,6 +253,7 @@ describe('temps de trajet', () => {
   it('signale qu’aucun tram n’est annoncé dans la direction choisie', async () => {
     localStorage.setItem('quandpartir.direction', 'Debourg');
     render(<App api={api} />);
+    await openSettings();
     // La direction retenue reste proposée même si aucun passage ne l’annonce.
     expect(screen.getByLabelText('Direction')).toHaveValue('Debourg');
     expect(await within(widget()).findByText('Aucun tram T1 direction Debourg annoncé à cet arrêt.')).toBeInTheDocument();
@@ -207,6 +261,7 @@ describe('temps de trajet', () => {
 
   it('signale qu’aucun tram n’est atteignable', async () => {
     render(<App api={api} />);
+    await openSettings();
     await within(widget()).findByText('3:10 min.');
     clickWalk('plus', 15);
     expect(await within(widget()).findByText('Aucun tram T1 direction Part-Dieu atteignable avec 15 min de trajet.')).toBeInTheDocument();
@@ -215,6 +270,7 @@ describe('temps de trajet', () => {
 
 it('borne le temps de trajet entre 0 et 30 minutes', async () => {
   render(<App api={createDemoApi()} />);
+  await openSettings();
   const minus = within(walk()).getByRole('button', { name: 'Une minute de moins' });
   const plus = within(walk()).getByRole('button', { name: 'Une minute de plus' });
   expect(walk()).toHaveTextContent('0 min');
@@ -240,6 +296,7 @@ describe('appels à l’API', () => {
     const api = createDemoApi();
     const getLinePassages = vi.spyOn(api, 'getLinePassages');
     render(<App api={api} />);
+    await openSettings();
     await chooseLine('T1');
     await waitFor(() => expect(getLinePassages).toHaveBeenCalledTimes(1));
     vi.useFakeTimers();
@@ -259,6 +316,7 @@ describe('appels à l’API', () => {
   it('garde les derniers passages, sans message, quand un appel échoue', async () => {
     const api = createDemoApi();
     render(<App api={api} />);
+    await openSettings();
     await chooseLine('T1');
     await chooseStop('Arrêt B');
     const countdown = await within(widget()).findByText(/\d+:\d{2} min\./);
@@ -279,6 +337,7 @@ describe('appels à l’API', () => {
       getStops: async () => [{ name: 'Arrêt A', ids: ['1'] }],
     };
     render(<App api={api} />);
+    await openSettings();
     await chooseLine('T1');
     await chooseStop('Arrêt A');
     expect(await within(widget()).findByText('Aucun tram T1 annoncé à cet arrêt.')).toBeInTheDocument();
@@ -289,6 +348,7 @@ describe('appels à l’API', () => {
 it('sélectionne l’arrêt le plus proche de la position', async () => {
   mockPosition({ lat: 45.7486, lon: 4.8256 });
   render(<App api={createDemoApi()} />);
+  await openSettings();
   await chooseLine('T1');
   fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
   expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
@@ -307,6 +367,7 @@ describe('au chargement', () => {
   it('reprend ligne, direction et temps de trajet, puis géolocalise pour choisir l’arrêt', async () => {
     mockPosition({ lat: 45.7486, lon: 4.8256 });
     render(<App api={createDemoApi()} />);
+    await openSettings();
     expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
     expect(screen.getByLabelText('Ligne')).toHaveValue('T1');
     expect(screen.getByLabelText('Direction')).toHaveValue('Direction B');
@@ -319,6 +380,7 @@ describe('au chargement', () => {
   it('garde l’arrêt retenu, sans message, si la localisation est refusée', async () => {
     mockPosition({ denied: true });
     render(<App api={createDemoApi()} />);
+    await openSettings();
     await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalled());
     expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt A');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -328,6 +390,7 @@ describe('au chargement', () => {
 it('ne géolocalise pas au premier chargement, sans ligne retenue', async () => {
   mockPosition({ lat: 45.7486, lon: 4.8256 });
   render(<App api={createDemoApi()} />);
+  await openSettings();
   await chooseLine('T1');
   await screen.findByRole('option', { name: 'Arrêt B' });
   expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
@@ -336,6 +399,7 @@ it('ne géolocalise pas au premier chargement, sans ligne retenue', async () => 
 it('explique un refus de localisation', async () => {
   mockPosition({ denied: true });
   render(<App api={createDemoApi()} />);
+  await openSettings();
   await chooseLine('T1');
   fireEvent.click(await screen.findByRole('button', { name: 'Arrêt le plus proche' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Localisation refusée');

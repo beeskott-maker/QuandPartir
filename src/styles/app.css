@@ -56,18 +56,18 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Cartes regroupant les réglages (ligne et direction ; arrêt et temps de trajet) :
-   simple contour, sans fond, avec les coins arrondis du widget. */
-.card {
-  padding: 20px;
-  border: 1px solid #d0d0d0;
-  border-radius: 28px;
+/* Section « Réglages » (accordéon Gestalt) : deux groupes séparés par un filet,
+   ligne et direction, puis arrêt et temps de trajet. */
+.settings-group + .settings-group {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
 }
 
-/* Dans une carte, les champs prennent la moitié de la largeur de la page sans
+/* Dans un groupe, les champs prennent la moitié de la largeur de la page sans
    descendre sous une largeur lisible ; la place de l'icône (48 px + 8 px d'écart)
    reste disponible à droite. */
-.card-fields {
+.settings-fields {
   width: min(calc(100% - 56px), max(50%, 270px));
 }
 
