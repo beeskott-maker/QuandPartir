@@ -11,6 +11,8 @@ import type { Passage, PassagesApi, Stop } from './lib/types';
 
 const REFRESH_MS = 30_000;
 const MAX_WALK_MINUTES = 30;
+/** Icône ⇄ (flèche vers la droite au-dessus, vers la gauche dessous), grille 24 × 24 de Gestalt. */
+const SWAP_ARROWS_PATH = 'M2 6h14V3l5 4-5 4V8H2zM22 18H8v3l-5-4 5-4v3h14z';
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -231,7 +233,7 @@ export function App({ api }: { api: PassagesApi }) {
                   <IconButton
                     accessibilityLabel="Basculer sur l’autre direction"
                     tooltip={{ text: 'Autre direction' }}
-                    icon="swap"
+                    dangerouslySetSvgPath={{ __path: SWAP_ARROWS_PATH }}
                     bgColor="red"
                     iconColor="white"
                     size="lg"
