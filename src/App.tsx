@@ -297,13 +297,6 @@ export function App({ api }: { api: PassagesApi }) {
                             />
                           </Flex>
                         </div>
-                      </Flex>
-                      </div>
-                    </div>
-
-                    <div className="settings-group">
-                      <div className="settings-fields">
-                      <Flex direction="column" gap={6}>
                         <Flex direction="column" gap={2}>
                           <div className="with-action">
                             <Flex alignItems="end" gap={2}>
@@ -344,7 +337,13 @@ export function App({ api }: { api: PassagesApi }) {
                             </Text>
                           )}
                         </Flex>
+                      </Flex>
+                      </div>
+                    </div>
 
+                    <div className="settings-group">
+                      <div className="settings-fields">
+                      <Flex direction="column" gap={6}>
                         <Flex direction="column" gap={4}>
                           <Text id="walk-label" size="200">
                             Temps pour rejoindre l’arrêt
