@@ -297,7 +297,7 @@ export function App({ api }: { api: PassagesApi }) {
                                 accessibilityLabel="Basculer sur l’autre direction"
                                 dangerouslySetSvgPath={{ __path: SWAP_ARROWS_PATH }}
                                 bgColor="lightGray"
-                                iconColor="darkGray"
+                                iconColor="red"
                                 size="lg"
                                 onClick={() => chooseDirection(otherDirection(directions, direction))}
                                 disabled={directions.length < 2}
@@ -330,7 +330,7 @@ export function App({ api }: { api: PassagesApi }) {
                                     accessibilityLabel={locating ? 'Localisation…' : 'Arrêt le plus proche'}
                                     icon="location"
                                     bgColor="lightGray"
-                                    iconColor="darkGray"
+                                    iconColor="red"
                                     size="lg"
                                     onClick={() => chooseNearest()}
                                   />
