@@ -3,6 +3,10 @@ import { formatCountdown, formatTime, nextPassage } from '../lib/countdown';
 import { lineLabel } from '../lib/lines';
 import type { Passage } from '../lib/types';
 
+/** Piéton en marche (Material Icons « directions_walk », grille 24 × 24). */
+const WALK_ICON_PATH =
+  'M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7';
+
 /** Heure courante, rafraîchie chaque seconde pour le compte à rebours. */
 function useNow(): Date {
   const [now, setNow] = useState(() => new Date());
@@ -53,6 +57,14 @@ export function DepartureWidget({ line, direction, hasStop, passages, walkMinute
       <p className="widget-countdown">
         {next ? `${formatCountdown(next.departure.getTime() - walkMs - now.getTime())} min` : '–'}
       </p>
+      {next && walkMinutes > 0 && (
+        <p className="widget-walk">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d={WALK_ICON_PATH} />
+          </svg>
+          <span>{walkMinutes} min à pied</span>
+        </p>
+      )}
       <p className="widget-detail">{detail}</p>
     </section>
   );

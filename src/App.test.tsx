@@ -290,6 +290,8 @@ describe('temps de trajet', () => {
     expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:03:10');
     // « Prochain tram T1 » sur une ligne, la direction sur la suivante.
     expect(widget().querySelector('.widget-detail br')).not.toBeNull();
+    // Sans trajet à faire, pas de temps de marche affiché.
+    expect(widget()).not.toHaveTextContent('à pied');
   });
 
   it('retranche le temps de trajet et saute les trams qu’on ne peut plus attraper', async () => {
@@ -299,6 +301,8 @@ describe('temps de trajet', () => {
     clickWalk('plus', 2);
     expect(walk()).toHaveTextContent('2 min');
     expect(await within(widget()).findByText('1:10 min')).toBeInTheDocument();
+    // Le temps de marche s'affiche sous le compte à rebours.
+    expect(within(widget()).getByText('2 min à pied')).toBeInTheDocument();
     clickWalk('plus', 3);
     // Le tram de 13:03 est manqué : le suivant vers Part-Dieu passe à 13:12.
     expect(await within(widget()).findByText('7:00 min')).toBeInTheDocument();
@@ -505,6 +509,8 @@ describe('au chargement', () => {
     render(<App api={api} />);
     await openSettings();
     await waitFor(() => expect(walk()).toHaveTextContent('12 min'));
+    // Le widget compte la marge de l'estimation dans le temps de marche.
+    expect(within(widget()).getByText('12 min à pied')).toBeInTheDocument();
     expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });

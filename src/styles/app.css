@@ -44,6 +44,21 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* Temps de marche vers l'arrêt, sous le compte à rebours. */
+.widget-walk {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px !important;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+/* Sur le fond rouge du widget, l'icône reste blanche comme le texte. */
+#root .widget svg {
+  fill: currentColor;
+}
+
 .widget-detail {
   margin-top: 24px !important;
   font-size: 18px;
