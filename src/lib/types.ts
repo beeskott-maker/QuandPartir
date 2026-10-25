@@ -17,6 +17,6 @@ export interface Passage {
 export interface PassagesApi {
   /** Indique si l'appli tourne sur des données fictives. */
   readonly demo: boolean;
-  /** Prochains passages d'un arrêt, triés par heure. */
-  getPassages(stopId: string): Promise<Passage[]>;
+  /** Prochains passages d'une ligne à un arrêt, triés par heure. */
+  getPassages(stopId: string, line: string): Promise<Passage[]>;
 }

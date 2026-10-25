@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { DEFAULT_LINE } from './lib/lines';
 import type { Passage, PassagesApi } from './lib/types';
 
 const REFRESH_MS = 30_000;
@@ -8,6 +9,7 @@ function formatTime(date: Date): string {
 }
 
 export function App({ api }: { api: PassagesApi }) {
+  const [line] = useState(DEFAULT_LINE);
   const [draft, setDraft] = useState('');
   const [stopId, setStopId] = useState('');
   const [passages, setPassages] = useState<Passage[]>([]);
@@ -20,7 +22,7 @@ export function App({ api }: { api: PassagesApi }) {
     const load = async () => {
       setLoading(true);
       try {
-        const result = await api.getPassages(stopId);
+        const result = await api.getPassages(stopId, line);
         if (!cancelled) {
           setPassages(result);
           setError(null);
@@ -37,7 +39,7 @@ export function App({ api }: { api: PassagesApi }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [api, stopId]);
+  }, [api, stopId, line]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -47,6 +49,7 @@ export function App({ api }: { api: PassagesApi }) {
   return (
     <main className="page">
       <h1>QuandPartir</h1>
+      <p>Ligne {line}</p>
       {api.demo && <p className="badge">Mode démo : passages fictifs</p>}
       <form onSubmit={submit} className="form">
         <label htmlFor="stop">Code de l’arrêt TCL</label>

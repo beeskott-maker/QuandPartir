@@ -10,27 +10,22 @@ npm install
 npm run dev
 ```
 
-Sans identifiants, l'appli tourne en **mode démo** avec des passages fictifs.
+L'appli appelle le relais en ligne https://api.quandpartir.workers.dev, y compris
+en local. Pour travailler sur des passages fictifs, sans appel à l'API, mettre
+`VITE_TCL_API_URL=demo` dans `.env.local` (voir `.env.example`).
 
 ## Accès à l'API data.grandlyon.com
 
-L'API demande un compte data.grandlyon.com (gratuit), en authentification HTTP Basic.
+L'API demande un compte data.grandlyon.com, en authentification HTTP Basic.
 Les identifiants ne doivent jamais arriver dans le navigateur : le front appelle un
-**relais** qui ajoute l'authentification.
+**relais**, un Cloudflare Worker (dossier `worker/`), qui ajoute l'authentification.
 
-En local, ce relais est le serveur de dev de Vite (`vite.config.ts`) :
-
-1. Copier `.env.example` en `.env.local` (ignoré par Git).
-2. Renseigner `GRANDLYON_USER` et `GRANDLYON_PASSWORD`.
-3. Relancer `npm run dev`.
-
-Le front appelle alors `/api/grandlyon/...`, relayé vers
-`https://data.grandlyon.com/fr/datapusher/ws/rdata/...`.
-
-En ligne, le relais est un Cloudflare Worker (dossier `worker/`), publié sur
-https://api.quandpartir.workers.dev. Il n'accepte que les jeux de données TCL utiles,
-garde chaque réponse 20 s en mémoire et n'autorise que les origines listées dans
-`worker/wrangler.toml`. Le front le trouve via `VITE_TCL_API_URL`.
+- Grand Lyon n'est interrogé que **ligne par ligne** (`field=ligne&value=…`),
+  jamais sur tout le réseau. La ligne vient du paramètre `ligne` (T1 par défaut) ;
+  pour l'instant l'appli utilise toujours la T1 (`src/lib/lines.ts`).
+- Le relais filtre ensuite par arrêt, garde chaque ligne 20 s en mémoire, n'expose
+  que le jeu de données des prochains passages et n'autorise que les origines listées
+  dans `worker/wrangler.toml`.
 
 ## Déploiement
 

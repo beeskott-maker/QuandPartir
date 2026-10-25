@@ -55,8 +55,9 @@ export function createTclApi(baseUrl: string, fetchFn: typeof fetch = fetch): Pa
   const root = baseUrl.replace(/\/+$/, '');
   return {
     demo: false,
-    async getPassages(stopId) {
-      const params = new URLSearchParams({ field: 'id', value: stopId, maxfeatures: '100', start: '1' });
+    async getPassages(stopId, line) {
+      // Le relais n'interroge Grand Lyon que sur la ligne demandée.
+      const params = new URLSearchParams({ ligne: line, field: 'id', value: stopId });
       const response = await fetchFn(`${root}/${PASSAGES_DATASET}/all.json?${params}`, {
         headers: { Accept: 'application/json' },
       });
@@ -66,7 +67,7 @@ export function createTclApi(baseUrl: string, fetchFn: typeof fetch = fetch): Pa
       if (!response.ok) {
         throw new TclApiError(`Erreur ${response.status} du service data.grandlyon.com`, response.status);
       }
-      return parsePassages(await response.json());
+      return parsePassages(await response.json()).filter((p) => p.line === line);
     },
   };
 }

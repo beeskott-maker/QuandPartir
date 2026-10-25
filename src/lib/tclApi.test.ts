@@ -31,18 +31,19 @@ describe('parsePassages', () => {
 });
 
 describe('createTclApi', () => {
-  it('interroge le jeu de données filtré sur l’arrêt via le relais', async () => {
-    const fetchFn = vi.fn(async () => new Response(JSON.stringify(sample), { status: 200 }));
-    const api = createTclApi('/api/grandlyon/', fetchFn as unknown as typeof fetch);
-    const passages = await api.getPassages('34152');
-    expect(passages).toHaveLength(2);
+  it('demande au relais la ligne et l’arrêt, et ne garde que cette ligne', async () => {
+    const body = { values: [...sample.values, { id: 34152, ligne: 'T2', direction: 'Perrache', type: 'E', heurepassage: '2026-10-25 14:04:00' }] };
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }));
+    const api = createTclApi('https://api.test/', fetchFn as unknown as typeof fetch);
+    const passages = await api.getPassages('34152', 'T1');
+    expect(passages.map((p) => p.line)).toEqual(['T1', 'T1']);
     const url = (fetchFn.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe('/api/grandlyon/tcl_sytral.tclpassagearret/all.json?field=id&value=34152&maxfeatures=100&start=1');
+    expect(url).toBe('https://api.test/tcl_sytral.tclpassagearret/all.json?ligne=T1&field=id&value=34152');
   });
 
   it('signale un accès refusé', async () => {
     const fetchFn = vi.fn(async () => new Response('', { status: 401 }));
-    const api = createTclApi('/api/grandlyon', fetchFn as unknown as typeof fetch);
-    await expect(api.getPassages('1')).rejects.toMatchObject({ status: 401 });
+    const api = createTclApi('https://api.test', fetchFn as unknown as typeof fetch);
+    await expect(api.getPassages('1', 'T1')).rejects.toMatchObject({ status: 401 });
   });
 });
