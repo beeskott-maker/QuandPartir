@@ -53,3 +53,9 @@ body {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+
+/* Champs sur la moitié de la largeur, sans descendre sous une largeur lisible. */
+.fields {
+  width: 50%;
+  min-width: min(100%, 260px);
+}
