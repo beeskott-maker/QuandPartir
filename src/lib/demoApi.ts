@@ -1,12 +1,21 @@
-import type { Passage, PassagesApi } from './types';
+import type { Passage, PassagesApi, Stop } from './types';
 
 const DEMO_DIRECTIONS = ['Direction A', 'Direction B'];
+const DEMO_STOPS: Stop[] = [
+  { name: 'Arrêt A', ids: ['1', '2'] },
+  { name: 'Arrêt B', ids: ['3', '4'] },
+  { name: 'Arrêt C', ids: ['5', '6'] },
+];
 
 /** Passages fictifs, recalculés à chaque appel pour rester « à venir ». */
 export function createDemoApi(now: () => Date = () => new Date()): PassagesApi {
   return {
     demo: true,
-    async getPassages(stopId, line) {
+    async getStops() {
+      return DEMO_STOPS;
+    },
+    async getPassages(stopIds, line) {
+      const stopId = stopIds[0];
       const start = now().getTime();
       const passages: Passage[] = [];
       DEMO_DIRECTIONS.forEach((direction, dirIndex) => {

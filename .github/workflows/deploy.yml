@@ -26,6 +26,12 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # Liste des arrêts de la ligne (public/arrets.json), publiée avec le site.
+      - run: npm run stops
+        if: github.event_name != 'pull_request'
+        env:
+          GRANDLYON_USER: ${{ secrets.GRANDLYON_USER }}
+          GRANDLYON_PASSWORD: ${{ secrets.GRANDLYON_PASSWORD }}
       - run: npm run build
         env:
           # GitHub Pages sert le site sous /<nom-du-repo>/.

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit && tsc -p worker --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "stops": "node scripts/fetch-stops.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

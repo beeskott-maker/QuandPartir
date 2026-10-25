@@ -23,6 +23,10 @@ Les identifiants ne doivent jamais arriver dans le navigateur : le front appelle
 - Grand Lyon n'est interrogé que **ligne par ligne** (`field=ligne&value=…`),
   jamais sur tout le réseau. La ligne vient du paramètre `ligne` (T1 par défaut) ;
   pour l'instant l'appli utilise toujours la T1 (`src/lib/lines.ts`).
+- La liste des arrêts de la ligne (nom -> codes d'arrêt, jeu `tcl_sytral.tclarret`)
+  est générée à chaque déploiement par `scripts/fetch-stops.mjs` dans
+  `public/arrets.json` et publiée avec le site : l'appli ne la demande pas à l'API.
+  En local : `GRANDLYON_USER=… GRANDLYON_PASSWORD=… npm run stops`.
 - Le relais filtre ensuite par arrêt, garde chaque ligne 20 s en mémoire, n'expose
   que le jeu de données des prochains passages et n'autorise que les origines listées
   dans `worker/wrangler.toml`.

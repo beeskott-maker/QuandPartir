@@ -14,9 +14,17 @@ export interface Passage {
   realtime: boolean;
 }
 
+/** Un arrêt d'une ligne : un nom, un ou plusieurs codes (un par quai ou sens). */
+export interface Stop {
+  name: string;
+  ids: string[];
+}
+
 export interface PassagesApi {
   /** Indique si l'appli tourne sur des données fictives. */
   readonly demo: boolean;
-  /** Prochains passages d'une ligne à un arrêt, triés par heure. */
-  getPassages(stopId: string, line: string): Promise<Passage[]>;
+  /** Arrêts desservis par une ligne, triés par nom. */
+  getStops(line: string): Promise<Stop[]>;
+  /** Prochains passages d'une ligne à un arrêt (tous ses codes), triés par heure. */
+  getPassages(stopIds: string[], line: string): Promise<Passage[]>;
 }

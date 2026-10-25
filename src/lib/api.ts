@@ -8,5 +8,6 @@ const DEFAULT_RELAY_URL = 'https://api.quandpartir.workers.dev';
 /** VITE_TCL_API_URL=demo lance l'appli sur des passages fictifs. */
 export function createDefaultApi(): PassagesApi {
   const relayUrl = import.meta.env.VITE_TCL_API_URL || DEFAULT_RELAY_URL;
-  return relayUrl === 'demo' ? createDemoApi() : createTclApi(relayUrl);
+  if (relayUrl === 'demo') return createDemoApi();
+  return createTclApi(relayUrl, `${import.meta.env.BASE_URL}arrets.json`);
 }

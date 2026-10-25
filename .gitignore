@@ -5,3 +5,5 @@ dist
 .env.*
 !.env.example
 coverage
+# Généré par scripts/fetch-stops.mjs
+public/arrets.json

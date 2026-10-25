@@ -1,4 +1,4 @@
-import type { Passage, PassagesApi } from './types';
+import type { Passage, PassagesApi, Stop } from './types';
 
 const PASSAGES_DATASET = 'tcl_sytral.tclpassagearret';
 
@@ -50,14 +50,23 @@ export function parsePassages(body: unknown): Passage[] {
   return passages.sort((a, b) => a.departure.getTime() - b.departure.getTime());
 }
 
-/** Accès aux prochains passages TCL via le relais qui détient les identifiants. */
-export function createTclApi(baseUrl: string, fetchFn: typeof fetch = fetch): PassagesApi {
+/**
+ * Accès aux prochains passages TCL via le relais qui détient les identifiants.
+ * La liste des arrêts est un fichier statique généré au déploiement (scripts/fetch-stops.mjs).
+ */
+export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof fetch = fetch): PassagesApi {
   const root = baseUrl.replace(/\/+$/, '');
   return {
     demo: false,
-    async getPassages(stopId, line) {
+    async getStops(line) {
+      const response = await fetchFn(stopsUrl);
+      if (!response.ok) throw new TclApiError('Liste des arrêts indisponible', response.status);
+      const body = (await response.json()) as { lines?: Record<string, Stop[]> };
+      return body.lines?.[line] ?? [];
+    },
+    async getPassages(stopIds, line) {
       // Le relais n'interroge Grand Lyon que sur la ligne demandée.
-      const params = new URLSearchParams({ ligne: line, field: 'id', value: stopId });
+      const params = new URLSearchParams({ ligne: line, field: 'id', value: stopIds.join(',') });
       const response = await fetchFn(`${root}/${PASSAGES_DATASET}/all.json?${params}`, {
         headers: { Accept: 'application/json' },
       });

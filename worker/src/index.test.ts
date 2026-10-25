@@ -54,6 +54,11 @@ it('refuse une ligne invalide sans appeler Grand Lyon', async () => {
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
+it('accepte plusieurs codes d’arrêt', async () => {
+  const body = await (await get(`${PASSAGES}?field=id&value=101,102`)).json();
+  expect(body.values).toEqual([UPSTREAM_BODY.values[0], UPSTREAM_BODY.values[1]]);
+});
+
 it('filtre par arrêt et sert toutes les requêtes depuis un seul appel en cache', async () => {
   const first = await (await get(`${PASSAGES}?field=id&value=101`)).json();
   const second = await (await get(`${PASSAGES}?field=id&value=102`)).json();

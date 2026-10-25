@@ -4,8 +4,8 @@
  * tout le réseau. L'authentification vient des secrets du Worker.
  *
  * GET /tcl_sytral.tclpassagearret/all.json?ligne=T1    -> passages de la ligne
- * GET /tcl_sytral.tclpassagearret/all.json?ligne=T1&field=id&value=<arrêt>
- *                                                      -> passages de la ligne à cet arrêt
+ * GET /tcl_sytral.tclpassagearret/all.json?ligne=T1&field=id&value=<code>,<code>
+ *                                                      -> passages de la ligne à ces codes d'arrêt
  */
 
 export interface Env {
@@ -112,8 +112,9 @@ export default {
       return error('data.grandlyon.com injoignable', 502, cors);
     }
 
-    const stop = url.searchParams.get('field') === 'id' ? url.searchParams.get('value') : null;
-    const values = stop ? rows.filter((row) => String(row.id) === stop) : rows;
+    const stops = url.searchParams.get('field') === 'id' ? url.searchParams.get('value') : null;
+    const ids = stops ? new Set(stops.split(',').map((id) => id.trim())) : null;
+    const values = ids ? rows.filter((row) => ids.has(String(row.id))) : rows;
     return json({ ligne: line, nb_results: values.length, values }, 200, cors);
   },
 };
