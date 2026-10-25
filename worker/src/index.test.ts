@@ -102,14 +102,15 @@ it('limite les appels par adresse IP', async () => {
 
 describe('trajet à pied', () => {
   const ROUTE = 'https://api.test/itineraire';
-  const routeEnv: Env = { ...env, IGN_ROUTE_URL: 'https://ign.test/itineraire' };
+  const routeEnv: Env = { ...env, IGN_ROUTE_URL: 'https://ign.test/itineraire', OSM_ROUTE_URL: 'https://osm.test/foot' };
+  const notFound = () => new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
   const route = (query: string) => worker.fetch(new Request(`${ROUTE}?${query}`), routeEnv);
 
   it('demande à l’IGN un trajet piéton et renvoie durée et distance', async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ duration: 412.3, distance: 498.1, geometry: {} }), { status: 200 }));
     const response = await route('start=4.832012345,45.7578&end=4.8357,45.7606');
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ duration: 412.3, distance: 498.1 });
+    expect(await response.json()).toEqual({ duration: 412.3, distance: 498.1, source: 'ign' });
     const url = new URL((fetchMock.mock.calls[0] as [string])[0]);
     expect(url.origin + url.pathname).toBe('https://ign.test/itineraire');
     expect(Object.fromEntries(url.searchParams)).toMatchObject({
@@ -134,19 +135,37 @@ describe('trajet à pied', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Not found' }), { status: 404 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ duration: 300, distance: 350 }), { status: 200 }));
     const response = await route('start=4.832,45.7578&end=4.8357,45.7606');
-    expect(await response.json()).toEqual({ duration: 300, distance: 350 });
+    expect(await response.json()).toEqual({ duration: 300, distance: 350, source: 'ign' });
     const resources = fetchMock.mock.calls.map(([url]) => new URL(url as string).searchParams.get('resource'));
     expect(resources).toEqual(['bdtopo-valhalla', 'bdtopo-pgr']);
   });
 
-  it('signale une réponse de l’IGN inutilisable', async () => {
+  it('se rabat sur OpenStreetMap quand l’IGN échoue', async () => {
     fetchMock
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'x' }), { status: 200 }))
       .mockResolvedValueOnce(new Response('', { status: 500 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Not found' }), { status: 404 }));
+      .mockResolvedValueOnce(notFound())
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: 'Ok', routes: [{ duration: 380.5, distance: 512.2, legs: [] }] }), { status: 200 }),
+      );
+    const response = await route('start=4.832,45.7578&end=4.8357,45.7606');
+    expect(await response.json()).toEqual({ duration: 380.5, distance: 512.2, source: 'osm' });
+    const [url, init] = fetchMock.mock.calls[3] as [string, RequestInit];
+    expect(url).toBe('https://osm.test/foot/4.832,45.7578;4.8357,45.7606?overview=false');
+    expect((init.headers as Record<string, string>)['User-Agent']).toContain('QuandPartir');
+  });
+
+  it('signale l’échec de l’IGN et d’OpenStreetMap', async () => {
+    fetchMock
+      .mockResolvedValueOnce(notFound())
+      .mockResolvedValueOnce(notFound())
+      .mockResolvedValueOnce(notFound())
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'NoRoute', routes: [] }), { status: 200 }));
     const response = await route('start=4.832,45.7578&end=4.8357,45.7606');
     expect(response.status).toBe(502);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect((await response.json()).error).toBe('Erreur 404 du calcul d’itinéraire IGN (bdtopo-osrm)');
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect((await response.json()).error).toBe(
+      'Erreur 404 du calcul d’itinéraire IGN (bdtopo-osrm) ; Réponse inattendue du calcul d’itinéraire OpenStreetMap',
+    );
   });
 });

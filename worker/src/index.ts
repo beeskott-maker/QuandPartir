@@ -6,7 +6,8 @@
  * GET /tcl_sytral.tclpassagearret/all.json?ligne=T1    -> passages de la ligne
  * GET /tcl_sytral.tclpassagearret/all.json?ligne=T1&field=id&value=<code>,<code>
  *                                                      -> passages de la ligne à ces codes d'arrêt
- * GET /itineraire?start=<lon>,<lat>&end=<lon>,<lat>    -> trajet à pied (IGN) : { duration (s), distance (m) }
+ * GET /itineraire?start=<lon>,<lat>&end=<lon>,<lat>    -> trajet à pied (IGN, sinon OpenStreetMap) :
+ *                                                         { duration (s), distance (m), source }
  */
 
 export interface Env {
@@ -18,6 +19,8 @@ export interface Env {
   GRANDLYON_BASE_URL?: string;
   /** Pour les tests : autre serveur que le calcul d'itinéraire de l'IGN. */
   IGN_ROUTE_URL?: string;
+  /** Pour les tests : autre serveur que le calcul piéton OpenStreetMap. */
+  OSM_ROUTE_URL?: string;
 }
 
 export const DEFAULT_LINE = 'T1';
@@ -34,6 +37,10 @@ const ROUTE_PATH = '/itineraire';
  * annoncés par /navigation/getcapabilities, puis bdtopo-osrm, conseillé par la doc.
  */
 const IGN_RESOURCES = ['bdtopo-valhalla', 'bdtopo-pgr', 'bdtopo-osrm'];
+/** Secours : calcul piéton OSRM sur OpenStreetMap, hébergé par l'association FOSSGIS. */
+const OSM_ROUTE_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot';
+/** Sa charte d'usage demande d'identifier l'application appelante. */
+const USER_AGENT = 'QuandPartir (https://github.com/beeskott-maker/QuandPartir)';
 /** « lon,lat » en degrés décimaux. */
 const POINT_PATTERN = /^(-?\d{1,3}(?:\.\d+)?),(-?\d{1,2}(?:\.\d+)?)$/;
 /** Au-delà, ce n'est plus un trajet à pied jusqu'à un arrêt. */
@@ -122,7 +129,35 @@ function parsePoint(value: string | null): [number, number] | null {
   return [Number(lon.toFixed(5)), Number(lat.toFixed(5))];
 }
 
-/** Durée (s) et distance (m) d'un trajet à pied, d'après l'IGN. */
+interface Walk {
+  duration: number;
+  distance: number | null;
+}
+
+/** Durée et distance lues dans une réponse, ou null si elles sont inutilisables. */
+function readWalk(duration: unknown, distance: unknown): Walk | null {
+  const seconds = Number(duration);
+  const meters = Number(distance);
+  if (duration == null || !Number.isFinite(seconds) || seconds < 0) return null;
+  return { duration: seconds, distance: Number.isFinite(meters) ? meters : null };
+}
+
+/** Trajet à pied d'après OpenStreetMap (OSRM), ou un message d'échec. */
+async function osmWalk(start: [number, number], end: [number, number], env: Env): Promise<Walk | string> {
+  try {
+    const upstream = await fetch(`${env.OSM_ROUTE_URL ?? OSM_ROUTE_URL}/${start.join(',')};${end.join(',')}?overview=false`, {
+      headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+    });
+    if (!upstream.ok) return `Erreur ${upstream.status} du calcul d’itinéraire OpenStreetMap`;
+    const body = (await upstream.json()) as { code?: string; routes?: { duration?: unknown; distance?: unknown }[] };
+    const route = body.code === 'Ok' ? body.routes?.[0] : undefined;
+    return (route && readWalk(route.duration, route.distance)) ?? 'Réponse inattendue du calcul d’itinéraire OpenStreetMap';
+  } catch {
+    return 'Calcul d’itinéraire OpenStreetMap injoignable';
+  }
+}
+
+/** Durée (s) et distance (m) d'un trajet à pied, d'après l'IGN, sinon OpenStreetMap. */
 async function walkRoute(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
   const start = parsePoint(url.searchParams.get('start'));
   const end = parsePoint(url.searchParams.get('end'));
@@ -151,18 +186,19 @@ async function walkRoute(url: URL, env: Env, cors: Record<string, string>): Prom
         continue;
       }
       const body = (await upstream.json()) as { duration?: unknown; distance?: unknown };
-      const duration = Number(body.duration);
-      const distance = Number(body.distance);
-      if (!Number.isFinite(duration) || duration < 0) {
+      const walk = readWalk(body.duration, body.distance);
+      if (!walk) {
         failure = `Réponse inattendue du calcul d’itinéraire IGN (${resource})`;
         continue;
       }
-      return json({ duration, distance: Number.isFinite(distance) ? distance : null }, 200, cors);
+      return json({ ...walk, source: 'ign' }, 200, cors);
     } catch {
       // Ressource suivante.
     }
   }
-  return error(failure, 502, cors);
+  const osm = await osmWalk(start, end, env);
+  if (typeof osm !== 'string') return json({ ...osm, source: 'osm' }, 200, cors);
+  return error(`${failure} ; ${osm}`, 502, cors);
 }
 
 export default {
