@@ -6,6 +6,7 @@
  * GET /tcl_sytral.tclpassagearret/all.json?ligne=T1    -> passages de la ligne
  * GET /tcl_sytral.tclpassagearret/all.json?ligne=T1&field=id&value=<code>,<code>
  *                                                      -> passages de la ligne à ces codes d'arrêt
+ * GET /itineraire?start=<lon>,<lat>&end=<lon>,<lat>    -> trajet à pied (IGN) : { duration (s), distance (m) }
  */
 
 export interface Env {
@@ -15,6 +16,8 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   /** Pour les tests : autre serveur que data.grandlyon.com. */
   GRANDLYON_BASE_URL?: string;
+  /** Pour les tests : autre serveur que le calcul d'itinéraire de l'IGN. */
+  IGN_ROUTE_URL?: string;
 }
 
 export const DEFAULT_LINE = 'T1';
@@ -23,6 +26,13 @@ const LINE_PATTERN = /^[A-Z0-9]{1,8}$/;
 const UPSTREAM = 'https://data.grandlyon.com/fr/datapusher/ws/rdata';
 const PASSAGES_PATH = '/tcl_sytral.tclpassagearret/all.json';
 const MAX_FEATURES = 5000;
+/** Calcul d'itinéraire de la Géoplateforme IGN : public, gratuit, sans clé. */
+const IGN_ROUTE_URL = 'https://data.geopf.fr/navigation/itineraire';
+const ROUTE_PATH = '/itineraire';
+/** « lon,lat » en degrés décimaux. */
+const POINT_PATTERN = /^(-?\d{1,3}(?:\.\d+)?),(-?\d{1,2}(?:\.\d+)?)$/;
+/** Au-delà, ce n'est plus un trajet à pied jusqu'à un arrêt. */
+const MAX_WALK_KM = 10;
 const CACHE_TTL_MS = 20_000;
 /** Appels autorisés par adresse IP et par minute : large pour l'appli (2 par minute). */
 const RATE_LIMIT = 30;
@@ -98,6 +108,48 @@ async function fetchLineRows(line: string, env: Env): Promise<Row[]> {
   return rows;
 }
 
+/** « lon,lat » arrondi à 5 décimales (environ 1 m), ou null si invalide. */
+function parsePoint(value: string | null): [number, number] | null {
+  const match = value ? POINT_PATTERN.exec(value) : null;
+  if (!match) return null;
+  const [lon, lat] = [Number(match[1]), Number(match[2])];
+  if (Math.abs(lon) > 180 || Math.abs(lat) > 90) return null;
+  return [Number(lon.toFixed(5)), Number(lat.toFixed(5))];
+}
+
+/** Durée (s) et distance (m) d'un trajet à pied, d'après l'IGN. */
+async function walkRoute(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
+  const start = parsePoint(url.searchParams.get('start'));
+  const end = parsePoint(url.searchParams.get('end'));
+  if (!start || !end) return error('Points de départ et d’arrivée invalides', 400, cors);
+  // Écart en degrés, grossier mais suffisant pour écarter un trajet absurde.
+  if (Math.hypot(start[0] - end[0], start[1] - end[1]) * 111 > MAX_WALK_KM * 1.5) {
+    return error('Trajet trop long pour être fait à pied', 400, cors);
+  }
+  const query = new URLSearchParams({
+    resource: 'bdtopo-osrm',
+    profile: 'pedestrian',
+    optimization: 'fastest',
+    start: start.join(','),
+    end: end.join(','),
+    timeUnit: 'second',
+    distanceUnit: 'meter',
+    getSteps: 'false',
+  });
+  let body: { duration?: unknown; distance?: unknown };
+  try {
+    const upstream = await fetch(`${env.IGN_ROUTE_URL ?? IGN_ROUTE_URL}?${query}`, { headers: { Accept: 'application/json' } });
+    if (!upstream.ok) return error(`Erreur ${upstream.status} du calcul d’itinéraire IGN`, 502, cors);
+    body = await upstream.json();
+  } catch {
+    return error('Calcul d’itinéraire IGN injoignable', 502, cors);
+  }
+  const duration = Number(body.duration);
+  const distance = Number(body.distance);
+  if (!Number.isFinite(duration) || duration < 0) return error('Réponse inattendue du calcul d’itinéraire IGN', 502, cors);
+  return json({ duration, distance: Number.isFinite(distance) ? distance : null }, 200, cors);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('Origin');
@@ -117,6 +169,7 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname === ROUTE_PATH) return walkRoute(url, env, cors);
     if (url.pathname !== PASSAGES_PATH) return error('Jeu de données inconnu', 404, cors);
     const line = (url.searchParams.get('ligne') ?? DEFAULT_LINE).toUpperCase();
     if (!LINE_PATTERN.test(line)) return error('Ligne invalide', 400, cors);

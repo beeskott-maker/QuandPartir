@@ -4,7 +4,7 @@ import { DepartureWidget } from './components/DepartureWidget';
 import { LabeledIconButton } from './components/LabeledIconButton';
 import { MinuteStepper } from './components/MinuteStepper';
 import { otherDirection } from './lib/directions';
-import { currentPosition, formatDistance, nearestStop } from './lib/geo';
+import { currentPosition, estimateWalkSeconds, formatDistance, nearestStop, type Position } from './lib/geo';
 import { groupLines } from './lib/lines';
 import { readPreference, savePreference } from './lib/preferences';
 import { orderStops } from './lib/stopOrder';
@@ -42,6 +42,8 @@ export function App({ api }: { api: PassagesApi }) {
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [nearby, setNearby] = useState<{ name: string; distance: number } | null>(null);
+  // Temps de marche calculé depuis la position, pour cet arrêt : affiché tant qu'il est retenu.
+  const [walkEstimate, setWalkEstimate] = useState<{ stop: string; minutes: number } | null>(null);
   // Échec du bouton « Me localiser », affiché sous l'arrêt pour rester visible.
   const [locateError, setLocateError] = useState<string | null>(null);
 
@@ -180,31 +182,59 @@ export function App({ api }: { api: PassagesApi }) {
   }, [lineChosen]);
 
   /**
-   * Sélectionne l'arrêt le plus proche. Lancée automatiquement au chargement,
-   * un échec (localisation refusée…) est silencieux : l'arrêt retenu reste choisi.
-   * Si la ligne a changé entre-temps, ou si une demande plus récente a été
-   * lancée (une demande peut ne jamais aboutir), la réponse est ignorée.
+   * Sélectionne l'arrêt le plus proche et règle le temps pour le rejoindre à pied.
+   * Lancée automatiquement au chargement, un échec (localisation refusée…) est
+   * silencieux : l'arrêt retenu reste choisi. Une position rapide (Wi-Fi) sert
+   * d'abord, puis le GPS affine si possible. Si la ligne a changé entre-temps, si
+   * une demande plus récente a été lancée (une demande peut ne jamais aboutir) ou
+   * si l'arrêt ou le temps a été changé à la main, la réponse est ignorée.
    */
   const locateRequest = useRef(0);
+  const cancelLocate = () => {
+    locateRequest.current += 1;
+    setLocating(false);
+  };
   const chooseNearest = async ({ auto = false } = {}) => {
     const request = ++locateRequest.current;
     const line = lineChosen;
     const candidates = lineStops;
+    const stale = () => request !== locateRequest.current || currentLine.current !== line;
+
+    const applyPosition = async (position: Position) => {
+      const found = nearestStop(candidates, position);
+      if (!found) return;
+      const { name, lat, lon } = found.stop;
+      chooseStop(name);
+      setNearby({ name, distance: found.distance });
+      // Trajet à pied de l'IGN, sinon estimation d'après la distance à vol d'oiseau.
+      const seconds = await api
+        .getWalkSeconds(position, { lat: lat!, lon: lon! })
+        .catch(() => estimateWalkSeconds(found.distance));
+      if (stale()) return;
+      const minutes = Math.min(MAX_WALK_MINUTES, Math.ceil(seconds / 60));
+      chooseWalk(minutes);
+      setWalkEstimate({ stop: name, minutes });
+    };
+
     setLocating(true);
     setLocateError(null);
     try {
       const position = await currentPosition();
-      if (request !== locateRequest.current || currentLine.current !== line) return;
-      const found = nearestStop(candidates, position);
-      if (found) {
-        chooseStop(found.stop.name);
-        setNearby({ name: found.stop.name, distance: found.distance });
-      }
+      if (stale()) return;
+      await applyPosition(position);
       setError(null);
     } catch (e) {
       if (!auto && request === locateRequest.current) setLocateError(message(e));
+      return;
     } finally {
       if (request === locateRequest.current) setLocating(false);
+    }
+    // Le GPS, plus lent, affine l'arrêt et le temps de marche ; sans lui on garde l'estimation.
+    try {
+      const precise = await currentPosition({ precise: true });
+      if (!stale()) await applyPosition(precise);
+    } catch {
+      // Position rapide conservée.
     }
   };
 
@@ -316,7 +346,10 @@ export function App({ api }: { api: PassagesApi }) {
                                       !lineChosen ? 'Choisir d’abord une ligne' : lineStops.length ? 'Choisir un arrêt' : 'Chargement des arrêts…'
                                     }
                                     value={stop ? stopName : null}
-                                    onChange={({ value }) => chooseStop(value)}
+                                    onChange={({ value }) => {
+                                      cancelLocate();
+                                      chooseStop(value);
+                                    }}
                                     disabled={!lineStops.length}
                                   >
                                     {orderedStops.map((s) => (
@@ -366,7 +399,21 @@ export function App({ api }: { api: PassagesApi }) {
                             <Text id="walk-label" size="200">
                               Temps pour rejoindre l’arrêt
                             </Text>
-                            <MinuteStepper labelId="walk-label" value={walkMinutes} min={0} max={MAX_WALK_MINUTES} onChange={chooseWalk} />
+                            <MinuteStepper
+                              labelId="walk-label"
+                              value={walkMinutes}
+                              min={0}
+                              max={MAX_WALK_MINUTES}
+                              onChange={(minutes) => {
+                                cancelLocate();
+                                chooseWalk(minutes);
+                              }}
+                            />
+                            {walkEstimate && walkEstimate.stop === stopName && walkEstimate.minutes === walkMinutes && (
+                              <Text color="subtle" size="200">
+                                Trajet à pied calculé depuis ta position.
+                              </Text>
+                            )}
                           </Flex>
                         </Flex>
                         </div>

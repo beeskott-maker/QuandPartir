@@ -1,4 +1,4 @@
-import { currentPosition, distanceMeters, formatDistance, LOCATE_TIMEOUT_MS, nearestStop } from './geo';
+import { currentPosition, distanceMeters, estimateWalkSeconds, formatDistance, LOCATE_TIMEOUT_MS, nearestStop } from './geo';
 
 // Bellecour et Perrache, environ 1,2 km.
 const bellecour = { lat: 45.7578, lon: 4.832 };
@@ -40,4 +40,8 @@ describe('currentPosition', () => {
     vi.advanceTimersByTime(LOCATE_TIMEOUT_MS);
     await expect(result).rejects.toThrow('Position introuvable');
   });
+});
+
+it('estime la marche à 4,5 km/h avec 30 % de détours', () => {
+  expect(estimateWalkSeconds(1000)).toBeCloseTo(1040);
 });

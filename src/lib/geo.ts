@@ -1,9 +1,6 @@
-import type { Stop } from './types';
+import type { Position, Stop } from './types';
 
-export interface Position {
-  lat: number;
-  lon: number;
-}
+export type { Position };
 
 const EARTH_RADIUS_M = 6_371_000;
 
@@ -36,15 +33,25 @@ export function formatDistance(meters: number): string {
 /** Délai au-delà duquel on abandonne, même si le navigateur ne répond jamais. */
 export const LOCATE_TIMEOUT_MS = 15_000;
 
+/** Marche à 4,5 km/h, et des rues 30 % plus longues que la ligne droite. */
+const WALK_METERS_PER_SECOND = 4500 / 3600;
+const DETOUR_FACTOR = 1.3;
+
+/** Durée de marche estimée (s) d'après la distance à vol d'oiseau, faute d'itinéraire. */
+export function estimateWalkSeconds(meters: number): number {
+  return (meters * DETOUR_FACTOR) / WALK_METERS_PER_SECOND;
+}
+
 const NOT_FOUND = 'Position introuvable pour le moment. Vérifie que la localisation est activée, puis réessaie.';
 
 /**
  * Position actuelle de l'appareil (demande l'autorisation au premier appel).
- * La précision du Wi-Fi et des antennes suffit pour trouver un arrêt, et elle
- * répond plus vite que le GPS en intérieur. Certains navigateurs ne rappellent
- * jamais (autorisation laissée en suspens) : un délai garantit une réponse.
+ * Par défaut, la précision du Wi-Fi et des antennes : elle répond vite, même en
+ * intérieur, et suffit pour trouver un arrêt. `precise` demande le GPS, plus lent,
+ * pour affiner le temps de marche. Certains navigateurs ne rappellent jamais
+ * (autorisation laissée en suspens) : un délai garantit une réponse.
  */
-export function currentPosition(): Promise<Position> {
+export function currentPosition({ precise = false } = {}): Promise<Position> {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) {
       reject(new Error('La géolocalisation n’est pas disponible sur cet appareil.'));
@@ -66,7 +73,7 @@ export function currentPosition(): Promise<Position> {
           ),
         );
       },
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
+      { enableHighAccuracy: precise, timeout: 10_000, maximumAge: precise ? 0 : 60_000 },
     );
   });
 }

@@ -99,3 +99,40 @@ it('limite les appels par adresse IP', async () => {
   // Grand Lyon n'a été appelé qu'une fois grâce au cache.
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+describe('trajet à pied', () => {
+  const ROUTE = 'https://api.test/itineraire';
+  const routeEnv: Env = { ...env, IGN_ROUTE_URL: 'https://ign.test/itineraire' };
+  const route = (query: string) => worker.fetch(new Request(`${ROUTE}?${query}`), routeEnv);
+
+  it('demande à l’IGN un trajet piéton et renvoie durée et distance', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ duration: 412.3, distance: 498.1, geometry: {} }), { status: 200 }));
+    const response = await route('start=4.832012345,45.7578&end=4.8357,45.7606');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ duration: 412.3, distance: 498.1 });
+    const url = new URL((fetchMock.mock.calls[0] as [string])[0]);
+    expect(url.origin + url.pathname).toBe('https://ign.test/itineraire');
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      resource: 'bdtopo-osrm',
+      profile: 'pedestrian',
+      start: '4.83201,45.7578',
+      end: '4.8357,45.7606',
+      timeUnit: 'second',
+      distanceUnit: 'meter',
+    });
+  });
+
+  it('refuse des points invalides ou trop éloignés sans appeler l’IGN', async () => {
+    expect((await route('start=abc&end=4.8,45.7')).status).toBe(400);
+    expect((await route('start=4.83,45.75')).status).toBe(400);
+    expect((await route('start=4.83,45.75&end=2.35,48.85')).status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('signale une réponse de l’IGN inutilisable', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'x' }), { status: 200 }));
+    expect((await route('start=4.832,45.7578&end=4.8357,45.7606')).status).toBe(502);
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
+    expect((await route('start=4.832,45.7578&end=4.8357,45.7606')).status).toBe(502);
+  });
+});

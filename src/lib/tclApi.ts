@@ -1,6 +1,8 @@
 import type { Passage, PassagesApi, Stop } from './types';
 
 const PASSAGES_DATASET = 'tcl_sytral.tclpassagearret';
+/** Trajet à pied calculé par l'IGN, via le relais. */
+const ROUTE_PATH = 'itineraire';
 
 /** Ligne brute renvoyée par le service rdata de data.grandlyon.com. */
 interface RawPassage {
@@ -93,6 +95,14 @@ export function createTclApi(baseUrl: string, stopsUrl: string, fetchFn: typeof 
     },
     async getLinePassages(line) {
       return fetchPassages(line);
+    },
+    async getWalkSeconds(from, to) {
+      const params = new URLSearchParams({ start: `${from.lon},${from.lat}`, end: `${to.lon},${to.lat}` });
+      const response = await fetchFn(`${root}/${ROUTE_PATH}?${params}`, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new TclApiError(`Erreur ${response.status} du calcul d’itinéraire`, response.status);
+      const duration = Number(((await response.json()) as { duration?: unknown }).duration);
+      if (!Number.isFinite(duration)) throw new TclApiError('Réponse inattendue du calcul d’itinéraire');
+      return duration;
     },
   };
 }

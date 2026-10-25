@@ -25,6 +25,12 @@ export interface Stop {
   lon?: number;
 }
 
+/** Position géographique en degrés décimaux. */
+export interface Position {
+  lat: number;
+  lon: number;
+}
+
 export interface PassagesApi {
   /** Indique si l'appli tourne sur des données fictives. */
   readonly demo: boolean;
@@ -34,4 +40,6 @@ export interface PassagesApi {
   getLinePassages(line: string): Promise<Passage[]>;
   /** Arrêts desservis par une ligne, triés par nom. */
   getStops(line: string): Promise<Stop[]>;
+  /** Durée d'un trajet à pied entre deux points, en secondes. */
+  getWalkSeconds(from: Position, to: Position): Promise<number>;
 }

@@ -1,3 +1,4 @@
+import { distanceMeters, estimateWalkSeconds } from './geo';
 import type { Passage, PassagesApi, Stop } from './types';
 
 const DEMO_DIRECTIONS = ['Direction A', 'Direction B'];
@@ -43,6 +44,9 @@ export function createDemoApi(now: () => Date = () => new Date()): PassagesApi {
     },
     async getStops() {
       return DEMO_STOPS;
+    },
+    async getWalkSeconds(from, to) {
+      return estimateWalkSeconds(distanceMeters(from, to));
     },
   };
 }

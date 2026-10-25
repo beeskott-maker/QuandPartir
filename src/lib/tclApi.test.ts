@@ -74,4 +74,18 @@ describe('createTclApi', () => {
     const url = (fetchFn.mock.calls[0] as unknown[])[0] as string;
     expect(url).toBe('https://api.test/tcl_sytral.tclpassagearret/all.json?ligne=T1');
   });
+
+  it('demande au relais la durée du trajet à pied (IGN)', async () => {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ duration: 412.3, distance: 498 }), { status: 200 }));
+    const api = createTclApi('https://api.test/', '/arrets.json', fetchFn as unknown as typeof fetch);
+    expect(await api.getWalkSeconds({ lat: 45.7578, lon: 4.832 }, { lat: 45.7606, lon: 4.8357 })).toBe(412.3);
+    const url = (fetchFn.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe('https://api.test/itineraire?start=4.832%2C45.7578&end=4.8357%2C45.7606');
+  });
+
+  it('signale un trajet à pied indisponible', async () => {
+    const fetchFn = vi.fn(async () => new Response('{}', { status: 502 }));
+    const api = createTclApi('https://api.test', '/arrets.json', fetchFn as unknown as typeof fetch);
+    await expect(api.getWalkSeconds({ lat: 45.7, lon: 4.8 }, { lat: 45.71, lon: 4.81 })).rejects.toMatchObject({ status: 502 });
+  });
 });

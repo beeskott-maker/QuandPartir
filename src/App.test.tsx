@@ -79,6 +79,7 @@ describe('changement de ligne (T1 puis T4)', () => {
   const api: PassagesApi = {
     demo: false,
     getLines: async () => ['T1', 'T4'],
+    getWalkSeconds: async () => 120,
     getStops: async (line) =>
       line === 'T1'
         ? [
@@ -261,6 +262,7 @@ describe('temps de trajet', () => {
   const api: PassagesApi = {
     demo: false,
     getLines: async () => ['T1'],
+    getWalkSeconds: async () => 120,
     getLinePassages: async () => [
       passage('13:03:10', 'Part-Dieu'),
       passage('13:10:00', 'IUT Feyssine'),
@@ -399,6 +401,7 @@ describe('appels à l’API', () => {
       demo: false,
       getLines: async () => ['T1'],
       getLinePassages: () => Promise.reject(new Error('Accès refusé')),
+      getWalkSeconds: async () => 120,
       getStops: async () => [{ name: 'Arrêt A', ids: ['1'] }],
     };
     render(<App api={api} />);
@@ -441,17 +444,56 @@ describe('au chargement', () => {
     localStorage.setItem('quandpartir.trajet', '6');
   });
 
-  it('reprend ligne, direction et temps de trajet, puis géolocalise pour choisir l’arrêt', async () => {
+  it('reprend ligne et direction, puis géolocalise pour choisir l’arrêt et régler le temps de marche', async () => {
     mockPosition({ lat: 45.7486, lon: 4.8256 });
-    render(<App api={createDemoApi()} />);
+    const api = createDemoApi();
+    const getWalkSeconds = vi.spyOn(api, 'getWalkSeconds').mockResolvedValue(290);
+    render(<App api={api} />);
     await openSettings();
     expect(await screen.findByText(/Arrêt le plus proche de toi, à 10 m/)).toBeInTheDocument();
     expect(screen.getByLabelText('Ligne')).toHaveValue('T1');
     expect(screen.getByLabelText('Direction')).toHaveValue('Direction B');
     expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
-    expect(walk()).toHaveTextContent('6 min');
+    // 290 s de marche, arrondis à la minute supérieure, remplacent les 6 min retenues.
+    await waitFor(() => expect(walk()).toHaveTextContent('5 min'));
+    expect(screen.getByText('Trajet à pied calculé depuis ta position.')).toBeInTheDocument();
+    expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
+    expect(getWalkSeconds).toHaveBeenCalledWith({ lat: 45.7486, lon: 4.8256 }, { lat: 45.7485, lon: 4.8255 });
     expect(await within(widget()).findByText(/Prochain tram T1 direction Direction B/)).toBeInTheDocument();
-    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+    // Position rapide, puis GPS pour affiner.
+    await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(2));
+    const [, , quick] = vi.mocked(navigator.geolocation.getCurrentPosition).mock.calls[0];
+    const [, , precise] = vi.mocked(navigator.geolocation.getCurrentPosition).mock.calls[1];
+    expect(quick?.enableHighAccuracy).toBe(false);
+    expect(precise?.enableHighAccuracy).toBe(true);
+  });
+
+  it('estime le temps de marche à vol d’oiseau si l’itinéraire est indisponible', async () => {
+    // À 500 m au nord d’Arrêt B : 500 m × 1,3 à 4,5 km/h, soit 8 min 40 s.
+    mockPosition({ lat: 45.753, lon: 4.8255 });
+    const api = createDemoApi();
+    vi.spyOn(api, 'getWalkSeconds').mockRejectedValue(new Error('IGN injoignable'));
+    render(<App api={api} />);
+    await openSettings();
+    await waitFor(() => expect(walk()).toHaveTextContent('9 min'));
+    expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('garde le temps de marche réglé à la main pendant le calcul', async () => {
+    mockPosition({ lat: 45.7486, lon: 4.8256 });
+    const api = createDemoApi();
+    let answer: (seconds: number) => void;
+    vi.spyOn(api, 'getWalkSeconds').mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    render(<App api={api} />);
+    await openSettings();
+    await screen.findByText(/Arrêt le plus proche de toi/);
+    fireEvent.click(screen.getByRole('button', { name: 'Une minute de plus' }));
+    expect(walk()).toHaveTextContent('7 min');
+    answer!(290);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(walk()).toHaveTextContent('7 min');
+    expect(screen.queryByText('Trajet à pied calculé depuis ta position.')).not.toBeInTheDocument();
   });
 
   it('relance la localisation au clic même si celle du chargement ne répond jamais', async () => {
