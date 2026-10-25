@@ -5,8 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const URL_ARRETS =
   'https://data.grandlyon.com/fr/datapusher/ws/rdata/tcl_sytral.tclarret/all.json?maxfeatures=5000&start=1';
-// Lignes proposées : toutes les lignes de tram (T1, T2…), ou la liste LINES=T1,T2.
-const TRAM = /^T\d+$/;
+// Lignes proposées : toutes les lignes du réseau, ou la liste LINES=A,T1,C3.
 const LINES_ENV = process.env.LINES?.split(',').map((l) => l.trim().toUpperCase());
 const OUTPUT = new URL('../public/arrets.json', import.meta.url);
 
@@ -51,11 +50,9 @@ function center(coords) {
 const rows = await fetchAll(process.env.STOPS_URL ?? URL_ARRETS);
 const LINES =
   LINES_ENV ??
-  [...new Set(rows.flatMap((row) => linesOf(row.desserte)).filter((line) => TRAM.test(line)))].sort((a, b) =>
-    a.localeCompare(b, 'fr', { numeric: true }),
-  );
+  [...new Set(rows.flatMap((row) => linesOf(row.desserte)))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
 if (LINES.length === 0) {
-  console.error(`Aucune ligne de tram trouvée parmi ${rows.length} arrêts.`);
+  console.error(`Aucune ligne trouvée parmi ${rows.length} arrêts.`);
   console.error('Exemple :', JSON.stringify(rows[0]));
   process.exit(1);
 }
@@ -78,8 +75,8 @@ for (const line of LINES) {
   lines[line] = [...byName]
     .map(([name, { ids, coords }]) => ({ name, ids, ...center(coords) }))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  console.log(`${line} : ${lines[line].length} arrêts`);
 }
+console.log(`${LINES.length} lignes : ${LINES.map((line) => `${line} (${lines[line].length})`).join(', ')}`);
 
 await mkdir(new URL('.', OUTPUT), { recursive: true });
 await writeFile(OUTPUT, JSON.stringify({ generatedAt: new Date().toISOString(), lines }));

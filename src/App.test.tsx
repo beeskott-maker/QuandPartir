@@ -55,6 +55,16 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
 
+it('propose toutes les lignes : métro, puis tram, puis bus', async () => {
+  render(<App api={createDemoApi()} />);
+  await screen.findByRole('option', { name: 'T1' });
+  const groups = within(screen.getByLabelText('Ligne')).getAllByRole('group');
+  expect(groups.map((g) => g.getAttribute('label'))).toEqual(['Métro et funiculaire', 'Tram', 'Bus']);
+  expect(within(groups[1]).getAllByRole('option').map((o) => o.textContent)).toEqual(['T1', 'T2']);
+  await chooseLine('C3');
+  expect(widget()).toHaveTextContent('Choisis un arrêt du C3 ci-dessous.');
+});
+
 it('retient la ligne, l’arrêt et le temps de trajet', async () => {
   localStorage.setItem('quandpartir.ligne', 'T1');
   localStorage.setItem('quandpartir.arret', 'Arrêt C');

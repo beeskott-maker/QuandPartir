@@ -12,7 +12,7 @@ export function createDemoApi(now: () => Date = () => new Date()): PassagesApi {
   return {
     demo: true,
     async getLines() {
-      return ['T1', 'T2'];
+      return ['T1', 'C3', 'A', 'T2'];
     },
     async getStops() {
       return DEMO_STOPS;

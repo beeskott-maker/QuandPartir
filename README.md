@@ -23,7 +23,7 @@ Les identifiants ne doivent jamais arriver dans le navigateur : le front appelle
 - Grand Lyon n'est interrogé que **ligne par ligne** (`field=ligne&value=…`),
   jamais sur tout le réseau. La ligne vient du paramètre `ligne` : celle que
   l'utilisateur a choisie dans l'appli (choix obligatoire).
-- Les lignes proposées (toutes les lignes de tram, ou `LINES=T1,T2`) et leurs arrêts
+- Les lignes proposées (toutes les lignes du réseau, ou `LINES=A,T1,C3`) et leurs arrêts
   (nom -> codes d'arrêt et position, jeu `tcl_sytral.tclarret`)
   est générée à chaque déploiement par `scripts/fetch-stops.mjs` dans
   `public/arrets.json` et publiée avec le site : l'appli ne la demande pas à l'API.

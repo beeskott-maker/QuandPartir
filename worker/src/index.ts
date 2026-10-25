@@ -18,8 +18,8 @@ export interface Env {
 }
 
 export const DEFAULT_LINE = 'T1';
-/** Code de ligne TCL : T1, C22, A, F1… */
-const LINE_PATTERN = /^[A-Z0-9]{1,6}$/;
+/** Code de ligne TCL : T1, C22, A, F1, JD550… */
+const LINE_PATTERN = /^[A-Z0-9]{1,8}$/;
 const UPSTREAM = 'https://data.grandlyon.com/fr/datapusher/ws/rdata';
 const PASSAGES_PATH = '/tcl_sytral.tclpassagearret/all.json';
 const MAX_FEATURES = 5000;

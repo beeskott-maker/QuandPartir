@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { DepartureWidget } from './components/DepartureWidget';
 import { MinuteStepper } from './components/MinuteStepper';
 import { currentPosition, formatDistance, nearestStop } from './lib/geo';
+import { groupLines } from './lib/lines';
 import { readPreference, savePreference } from './lib/preferences';
 import type { Passage, PassagesApi, Stop } from './lib/types';
 
@@ -132,10 +133,14 @@ export function App({ api }: { api: PassagesApi }) {
           <option value="" disabled>
             {lines.length ? 'Choisir une ligne' : 'Chargement des lignes…'}
           </option>
-          {lines.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
+          {groupLines(lines).map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.lines.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
 
