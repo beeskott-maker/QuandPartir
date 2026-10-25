@@ -109,6 +109,11 @@ export function App({ api }: { api: PassagesApi }) {
   // Une direction retenue reste proposée même si aucun passage ne l'annonce en ce moment.
   const directionOptions = direction && !directions.includes(direction) ? [direction, ...directions] : directions;
 
+  // Une direction est toujours choisie : à défaut, la première annoncée sur la ligne.
+  useEffect(() => {
+    if (lineChosen && !direction && directions.length) chooseDirection(directions[0]);
+  }, [lineChosen, direction, directions]);
+
   const stop = stops.find((s) => s.name === stopName);
   const shownPassages = useMemo(
     () =>
@@ -221,11 +226,17 @@ export function App({ api }: { api: PassagesApi }) {
                       id="direction"
                       label="Direction"
                       size="lg"
-                      value={direction}
+                      placeholder={
+                        !lineChosen
+                          ? 'Choisir d’abord une ligne'
+                          : directions.length
+                            ? 'Choisir une direction'
+                            : 'Aucune direction annoncée'
+                      }
+                      value={direction || null}
                       onChange={({ value }) => chooseDirection(value)}
-                      disabled={!lineChosen}
+                      disabled={!directionOptions.length}
                     >
-                      <SelectList.Option label={lineChosen ? 'Toutes les directions' : 'Choisir d’abord une ligne'} value="" />
                       {directionOptions.map((d) => (
                         <SelectList.Option key={d} label={d} value={d} />
                       ))}

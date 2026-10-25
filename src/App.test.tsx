@@ -82,15 +82,16 @@ it('retient la ligne, l’arrêt et le temps de trajet', async () => {
   expect(walk()).toHaveTextContent('4 min');
 });
 
-it('propose la direction sous la ligne, toutes par défaut', async () => {
+it('propose la direction sous la ligne et choisit d’office la première', async () => {
   render(<App api={createDemoApi()} />);
   const labels = screen.getAllByText(/^(Ligne|Direction|Arrêt)$/).map((el) => el.textContent);
   expect(labels).toEqual(['Ligne', 'Direction', 'Arrêt']);
   expect(screen.getByLabelText('Direction')).toBeDisabled();
   await chooseLine('T1');
   expect(await screen.findByRole('option', { name: 'Direction B' })).toBeInTheDocument();
-  expect(screen.getByLabelText('Direction')).toHaveValue('');
-  expect(screen.getByRole('option', { name: 'Toutes les directions' })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByLabelText('Direction')).toHaveValue('Direction A'));
+  expect(screen.queryByText('Toutes les directions')).not.toBeInTheDocument();
+  expect(localStorage.getItem('quandpartir.direction')).toBe('Direction A');
 });
 
 it('bascule sur l’autre direction', async () => {
@@ -98,9 +99,7 @@ it('bascule sur l’autre direction', async () => {
   const swap = screen.getByRole('button', { name: 'Basculer sur l’autre direction' });
   expect(swap).toBeDisabled();
   await chooseLine('T1');
-  await screen.findByRole('option', { name: 'Direction B' });
-  fireEvent.click(swap);
-  expect(screen.getByLabelText('Direction')).toHaveValue('Direction A');
+  await waitFor(() => expect(screen.getByLabelText('Direction')).toHaveValue('Direction A'));
   fireEvent.click(swap);
   expect(screen.getByLabelText('Direction')).toHaveValue('Direction B');
   expect(localStorage.getItem('quandpartir.direction')).toBe('Direction B');
@@ -125,10 +124,12 @@ it('redemande la direction et l’arrêt quand la ligne change', async () => {
   await screen.findByRole('option', { name: 'Direction A' });
   fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'Direction A' } });
   await chooseStop('Arrêt A');
+  fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'Direction B' } });
   await chooseLine('T2');
-  expect(screen.getByLabelText('Direction')).toHaveValue('');
+  // La direction repart sur la première de la nouvelle ligne, l'arrêt est à rechoisir.
+  await waitFor(() => expect(screen.getByLabelText('Direction')).toHaveValue('Direction A'));
   expect(await within(widget()).findByText('Choisis un arrêt du tram T2 ci-dessous.')).toBeInTheDocument();
-  expect(localStorage.getItem('quandpartir.direction')).toBe('');
+  expect(localStorage.getItem('quandpartir.direction')).toBe('Direction A');
   expect(localStorage.getItem('quandpartir.arret')).toBe('');
 });
 
@@ -145,7 +146,11 @@ describe('temps de trajet', () => {
   const api: PassagesApi = {
     demo: false,
     getLines: async () => ['T1'],
-    getLinePassages: async () => [passage('13:03:10', 'Part-Dieu'), passage('13:10:00', 'IUT Feyssine')],
+    getLinePassages: async () => [
+      passage('13:03:10', 'Part-Dieu'),
+      passage('13:10:00', 'IUT Feyssine'),
+      passage('13:12:00', 'Part-Dieu'),
+    ],
     getStops: async () => [{ name: 'Bellecour', ids: ['1'] }],
   };
 
@@ -153,6 +158,7 @@ describe('temps de trajet', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(now);
     localStorage.setItem('quandpartir.ligne', 'T1');
+    localStorage.setItem('quandpartir.direction', 'Part-Dieu');
     localStorage.setItem('quandpartir.arret', 'Bellecour');
   });
 
@@ -175,8 +181,9 @@ describe('temps de trajet', () => {
     expect(walk()).toHaveTextContent('2 min');
     expect(await within(widget()).findByText('1:10 minutes')).toBeInTheDocument();
     clickWalk('plus', 3);
-    expect(await within(widget()).findByText('5:00 minutes')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain tram T1 direction IUT Feyssine à 13:10:00');
+    // Le tram de 13:03 est manqué : le suivant vers Part-Dieu passe à 13:12.
+    expect(await within(widget()).findByText('7:00 minutes')).toBeInTheDocument();
+    expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:12:00');
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
   });
 
@@ -202,7 +209,7 @@ describe('temps de trajet', () => {
     render(<App api={api} />);
     await within(widget()).findByText('3:10 minutes');
     clickWalk('plus', 15);
-    expect(await within(widget()).findByText('Aucun tram T1 atteignable avec 15 min de trajet.')).toBeInTheDocument();
+    expect(await within(widget()).findByText('Aucun tram T1 direction Part-Dieu atteignable avec 15 min de trajet.')).toBeInTheDocument();
   });
 });
 
