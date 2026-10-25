@@ -54,11 +54,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Champs sur la moitié de la largeur, sans descendre sous une largeur lisible.
-   La place de l'icône (48 px + 8 px d'écart) reste disponible à droite. */
-.fields {
-  width: 50%;
-  min-width: min(calc(100% - 56px), 260px);
+/* Cartes regroupant les réglages (ligne et direction ; arrêt et temps de trajet),
+   dans le style du widget. */
+.card {
+  padding: 20px;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 2px 16px rgb(0 0 0 / 8%);
+}
+
+/* Dans une carte, les champs prennent la moitié de la largeur de la page sans
+   descendre sous une largeur lisible ; la place de l'icône (48 px + 8 px d'écart)
+   reste disponible à droite. */
+.card-fields {
+  width: min(calc(100% - 56px), max(50%, 270px));
 }
 
 /* Menu + icône : le menu garde la largeur des autres champs, l'icône déborde à droite. */
