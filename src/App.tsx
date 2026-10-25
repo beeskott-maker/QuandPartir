@@ -288,6 +288,7 @@ export function App({ api }: { api: PassagesApi }) {
         line={lineChosen}
         direction={direction}
         hasStop={Boolean(stop)}
+        stopName={stopName}
         passages={shownPassages}
         walkMinutes={walkMinutes}
       />

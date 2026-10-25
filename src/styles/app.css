@@ -44,14 +44,15 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* Temps de marche vers l'arrêt, sous le compte à rebours. */
-.widget-walk {
-  display: flex;
+/* « 3 min à pied → T1 arrêt … à 11h23 » : icône collée à son texte, retour à la ligne entre les deux parties. */
+.widget-trip-part {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px !important;
-  font-size: 16px;
-  font-weight: 400;
+}
+
+.widget-trip-part svg {
+  flex: none;
 }
 
 /* Sur le fond rouge du widget, l'icône reste blanche comme le texte. */

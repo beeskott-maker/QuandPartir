@@ -59,7 +59,7 @@ it('impose de choisir une ligne, puis un arrêt, sans liste des passages', async
   expect(widget()).toHaveTextContent('Choisis un arrêt du tram T2 ci-dessous.');
   await chooseStop('Arrêt B');
   expect(await within(widget()).findByText(/\d+:\d{2} min/)).toBeInTheDocument();
-  expect(widget()).toHaveTextContent(/Prochain tram T2 direction Direction . à \d{2}:\d{2}:\d{2}/);
+  expect(widget()).toHaveTextContent(/T2 arrêt Arrêt B à \d{1,2}h\d{2}$/);
   // Un seul appel, pour la ligne : l'arrêt est filtré dans l'appli.
   expect(getLinePassages).toHaveBeenCalledTimes(1);
   expect(getLinePassages).toHaveBeenCalledWith('T2');
@@ -180,7 +180,7 @@ it('propose toutes les lignes : métro, puis tram, puis bus', async () => {
   await chooseLine('A');
   expect(widget()).toHaveTextContent('Choisis un arrêt du métro A ci-dessous.');
   await chooseStop('Arrêt A');
-  expect(await within(widget()).findByText(/^Prochain métro A direction Direction . à/)).toBeInTheDocument();
+  expect(await within(widget()).findByText(/^A arrêt Arrêt A à \d{1,2}h\d{2}$/)).toBeInTheDocument();
 });
 
 it('retient la ligne, l’arrêt et le temps de trajet', async () => {
@@ -287,9 +287,9 @@ describe('temps de trajet', () => {
     render(<App api={api} />);
     await openSettings();
     expect(await within(widget()).findByText('3:10 min')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:03:10');
-    // « Prochain tram T1 » sur une ligne, la direction sur la suivante.
-    expect(widget().querySelector('.widget-detail br')).not.toBeNull();
+    expect(widget()).toHaveTextContent('T1 arrêt Bellecour à 13h03');
+    // La direction, choisie dans les réglages, n'est pas répétée dans le widget.
+    expect(widget()).not.toHaveTextContent('Part-Dieu');
     // Sans trajet à faire, pas de temps de marche affiché.
     expect(widget()).not.toHaveTextContent('à pied');
   });
@@ -302,11 +302,11 @@ describe('temps de trajet', () => {
     expect(walk()).toHaveTextContent('2 min');
     expect(await within(widget()).findByText('1:10 min')).toBeInTheDocument();
     // Le temps de marche s'affiche sous le compte à rebours.
-    expect(within(widget()).getByText('2 min à pied')).toBeInTheDocument();
+    expect(widget()).toHaveTextContent('2 min à pied → T1 arrêt Bellecour à 13h03');
     clickWalk('plus', 3);
     // Le tram de 13:03 est manqué : le suivant vers Part-Dieu passe à 13:12.
     expect(await within(widget()).findByText('7:00 min')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain tram T1 direction Part-Dieu à 13:12:00');
+    expect(widget()).toHaveTextContent('5 min à pied → T1 arrêt Bellecour à 13h12');
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
   });
 
@@ -317,7 +317,7 @@ describe('temps de trajet', () => {
     await screen.findByRole('option', { name: 'IUT Feyssine' });
     fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'IUT Feyssine' } });
     expect(await within(widget()).findByText('10:00 min')).toBeInTheDocument();
-    expect(widget()).toHaveTextContent('Prochain tram T1 direction IUT Feyssine à 13:10:00');
+    expect(widget()).toHaveTextContent('T1 arrêt Bellecour à 13h10');
     expect(localStorage.getItem('quandpartir.direction')).toBe('IUT Feyssine');
   });
 
@@ -396,7 +396,7 @@ describe('appels à l’API', () => {
     setPageHidden(false);
     await waitFor(() => expect(api.getLinePassages).toHaveBeenCalled());
     expect(countdown).toBeInTheDocument();
-    expect(widget()).toHaveTextContent(/Prochain tram T1 direction/);
+    expect(widget()).toHaveTextContent(/T1 arrêt Arrêt B à/);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -492,7 +492,7 @@ describe('au chargement', () => {
     expect(screen.getByText('Trajet à pied calculé depuis ta position.')).toBeInTheDocument();
     expect(localStorage.getItem('quandpartir.trajet')).toBe('5');
     expect(getWalkSeconds).toHaveBeenCalledWith({ lat: 45.7486, lon: 4.8256 }, { lat: 45.7485, lon: 4.8255 });
-    expect(await within(widget()).findByText(/Prochain tram T1 direction Direction B/)).toBeInTheDocument();
+    expect(await within(widget()).findByText(/^T1 arrêt Arrêt B à/)).toBeInTheDocument();
     // Position rapide, puis GPS pour affiner.
     await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(2));
     const [, , quick] = vi.mocked(navigator.geolocation.getCurrentPosition).mock.calls[0];
@@ -510,7 +510,7 @@ describe('au chargement', () => {
     await openSettings();
     await waitFor(() => expect(walk()).toHaveTextContent('12 min'));
     // Le widget compte la marge de l'estimation dans le temps de marche.
-    expect(within(widget()).getByText('12 min à pied')).toBeInTheDocument();
+    expect(widget()).toHaveTextContent(/12 min à pied → T1 arrêt Arrêt B à/);
     expect(screen.getByLabelText('Arrêt')).toHaveValue('Arrêt B');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
